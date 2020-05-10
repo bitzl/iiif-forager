@@ -1,4 +1,6 @@
 use serde::Serialize;
+use crate::metadata::ImageMetadata;
+
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -21,13 +23,6 @@ pub struct Metadata {
 }
 
 impl Metadata {
-    pub fn new(label: &str, value: Value) -> Metadata {
-        Metadata {
-            label: label.to_owned(),
-            value: value,
-        }
-    }
-
     pub fn key_value(label: &str, value: &str) -> Metadata {
         Metadata {
             label: label.to_owned(),
@@ -150,15 +145,11 @@ impl Sequence {
         }
     }
 
-    pub fn add(&mut self, canvas: Canvas) {
-        self.canvases.push(canvas);
-    }
-
-    pub fn add_image(&mut self, base_urls: &BaseUrls, item_id: &str, image_id: &str, label: &str, image_format: &ImageFormat, width: u64, height: u64) {
+    pub fn add_image(&mut self, base_urls: &BaseUrls, item_id: &str, image_id: &str, label: &str, image_metadata: &ImageMetadata) {
         let index = self.canvases.len();
-        let mut canvas = Canvas::new(base_urls, item_id, index, label, width, height);
-        let image_resource = ImageResource::new(base_urls, item_id, image_id, image_format, width, height);
-        let annotation = Annotation::new(base_urls, Resource::Image(image_resource), (&canvas.id).clone());
+        let mut canvas = Canvas::new(base_urls, item_id, index, label, image_metadata.width, image_metadata.height);
+        let image_resource = ImageResource::new(base_urls, item_id, image_id, image_metadata);
+        let annotation = Annotation::new(Resource::Image(image_resource), (&canvas.id).clone());
         &canvas.add_image(annotation);
         self.canvases.push(canvas);
     }
@@ -182,13 +173,13 @@ pub struct Canvas {
     #[serde(rename = "type")]
     iiif_type: String,
     label: String,
-    height: u64,
-    width: u64,
+    height: u32,
+    width: u32,
     images: Vec<Annotation>,
 }
 
 impl Canvas {
-    pub fn new(base_urls: &BaseUrls, item_id: &str, index: usize, label: &str, width: u64, height:u64) -> Canvas {
+    pub fn new(base_urls: &BaseUrls, item_id: &str, index: usize, label: &str, width: u32, height:u32) -> Canvas {
         let id = Uri::new(format!("{}/{}/canvas/{}", base_urls.presentation, item_id, index));
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let iiif_type = "sc:Canvas".to_owned();
@@ -207,8 +198,8 @@ impl Canvas {
 pub struct Thumbnail {
     id: Uri,
     iiif_type: String,
-    height: u64,
-    width: u64,
+    height: u32,
+    width: u32,
 }
 
 #[derive(Debug, Serialize)]
@@ -222,7 +213,7 @@ pub struct Annotation {
 }
 
 impl Annotation {
-    pub fn new(base_urls: &BaseUrls, resource: Resource, on: Uri) -> Annotation {
+    pub fn new(resource: Resource, on: Uri) -> Annotation {
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let iiif_type = "oa:Annotation".to_owned();
         let motivation = "sc:painting".to_owned();
@@ -242,41 +233,18 @@ pub struct ImageResource {
     iiif_type: String,
     format: String,
     service: Service,
-    width: u64,
-    height: u64,
+    width: u32,
+    height: u32,
 }
 
 impl ImageResource {
-    pub fn new(base_urls: &BaseUrls, item_id: &str, image_id: &str, image_format: &ImageFormat, width: u64, height:u64) -> ImageResource {
-        let id = Uri::new(format!("{}/{}/{}/full/full/default.{}", base_urls.image, item_id, image_id, image_format.extension()));
+    pub fn new(base_urls: &BaseUrls, item_id: &str, image_id: &str, image_metadata: &ImageMetadata) -> ImageResource {
+        let id = Uri::new(format!("{}/{}/{}/full/full/default.{}", base_urls.image, item_id, image_id, image_metadata.extension));
         let iiif_type = "dctypes:Image".to_owned();
         let service = Service::new_image_service(base_urls, item_id);
-        let format = image_format.format().to_owned();
+        let format = image_metadata.format.to_owned();
+        let width = image_metadata.width;
+        let height = image_metadata.height;
         ImageResource{id, iiif_type, format, service, width, height}
     }
-}
-
-
-pub enum ImageFormat {
-    JPEG,
-    PNG,
-    Unknown
-}
-
-impl ImageFormat {
-    pub fn extension(&self) -> &str {
-        match self {
-            &ImageFormat::JPEG => "jpg",
-            &ImageFormat::PNG => "png",
-            &ImageFormat::Unknown => ""
-        }
-    }
-
-    pub fn format(&self) -> &str {
-        match self {
-            &ImageFormat::JPEG => "image/jpeg",
-            &ImageFormat::PNG => "image/png",
-            &ImageFormat::Unknown => "image/unknown",
-        }
-    } 
 }

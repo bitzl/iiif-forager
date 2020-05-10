@@ -3,11 +3,13 @@
 extern crate actix_web;
 
 mod iiif;
+mod metadata;
 
-use actix_web::{web, App, HttpRequest, HttpServer, HttpResponse, Responder};
+use actix_web::{web, App, HttpServer, HttpResponse};
 use std::path::PathBuf;
 
-use crate::iiif::{BaseUrls, Manifest, Metadata, Sequence, ImageFormat};
+use crate::iiif::{BaseUrls, Manifest, Metadata, Sequence};
+use crate::metadata::ImageMetadata;
 
 struct ManifestSource {
     base_path: PathBuf,
@@ -43,12 +45,19 @@ impl ManifestSource {
                     }
 
                     let file_name = path.file_name().unwrap().to_str().unwrap();
-                    let image_meta = get_image_metadata(&path);
-                    sequence.add_image(&self.base_urls, &id, &file_name, &file_name, &image_meta.image_format, image_meta.width, image_meta.height);
+                    match ImageMetadata::read(&path) {
+                        Ok(image_metadata) => sequence.add_image(&self.base_urls, &id, &file_name, &file_name, &image_metadata),
+                        Err(e)=> {
+                            // TODO skip errors for non-image files, but show broken image files as broken
+                            println!("Error: {}", e);
+                            continue;
+                        }
+                    }
+                    ;
                 },
                 Err(e) => {
                     let label = format!("error reading entry: {}", e);
-                    sequence.add_image(&self.base_urls, &id, "???", &label, &ImageFormat::Unknown, 0, 0);
+                    sequence.add_image(&self.base_urls, &id, "???", &label, &ImageMetadata::unknown());
                 }
             }
         }
@@ -58,43 +67,6 @@ impl ManifestSource {
         Ok(manifest)
     }
 }
-
-struct ImageMetadata {
-    image_format: ImageFormat,
-    height: u64,
-    width: u64
-}
-
-impl ImageMetadata {
-    fn unknown() -> ImageMetadata {
-        ImageMetadata{ 
-            image_format: ImageFormat::Unknown,
-            width: 0,
-            height: 0
-        }
-    }
-}
-
-fn get_image_metadata(path: &PathBuf) -> ImageMetadata {
-    let extension = path.extension();
-    if path.extension().is_none() {
-        return ImageMetadata::unknown()
-    }
-    match extension.unwrap().to_str().unwrap().to_lowercase().as_str() {
-        "png" => ImageMetadata{ 
-            image_format: ImageFormat::PNG,
-            width: 0,
-            height: 0
-        },
-        "jpg" => ImageMetadata{
-            image_format: ImageFormat::JPEG,
-            width: 0,
-            height: 0
-        },
-        _ => ImageMetadata::unknown()
-    }
-}
-
 
 
 #[get("/{id:.*}/manifest")]
