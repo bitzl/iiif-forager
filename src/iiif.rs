@@ -173,6 +173,12 @@ impl Sequence {
         &canvas.add_image(annotation);
         self.canvases.push(canvas);
     }
+
+    pub fn add_placeholder(&mut self, base_urls: &BaseUrls, item_id: &str, label: &str) {
+        let index = self.canvases.len();
+        let fake_id = format!("??? ({})", index);
+        self.add_image(base_urls, item_id, fake_id.as_str(), fake_id.as_str(), &ImageMetadata::unknown())
+    }
 }
 
 pub struct BaseUrls {

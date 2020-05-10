@@ -44,34 +44,8 @@ impl ManifestSource {
         let mut sequence = Sequence::new(&self.base_urls, id, id);
 
         for entry in std::fs::read_dir(source_path).unwrap() {
-            match entry {
-                Ok(file) => {
-                    let path = file.path();
-                    println!("file: {}", path.to_str().unwrap());
-                    if !path.is_file() {
-                        continue;
-                    }
-
-                    let file_name = path.file_name().unwrap().to_str().unwrap();
-                    match ImageMetadata::read(&path) {
-                        Ok(image_metadata) => sequence.add_image(
-                            &self.base_urls,
-                            &id,
-                            &file_name,
-                            &file_name,
-                            &image_metadata,
-                        ),
-                        Err(MetadataError::IoError(e)) => {
-                            // TODO skip errors for non-image files, but show broken image files as broken
-                            println!("Error: {}", e);
-                            continue;
-                        }
-                        Err(MetadataError::UnsupportedFiletype(_)) => {
-                            // Probably not an image file, skip
-                            continue;
-                        }
-                    }
-                }
+            let file = match entry {
+                Ok(file) => file,
                 Err(e) => {
                     let label = format!("error reading entry: {}", e);
                     sequence.add_image(
@@ -81,6 +55,34 @@ impl ManifestSource {
                         &label,
                         &ImageMetadata::unknown(),
                     );
+                    continue;
+                }
+            };
+            
+            // got file, get metadata
+            let path = file.path();
+            println!("file: {}", path.to_str().unwrap());
+            if !path.is_file() {
+                continue;
+            }
+
+            let file_name = path.file_name().unwrap().to_str().unwrap();
+            match ImageMetadata::read(&path) {
+                Ok(image_metadata) => sequence.add_image(
+                    &self.base_urls,
+                    &id,
+                    &file_name,
+                    &file_name,
+                    &image_metadata,
+                ),
+                Err(MetadataError::IoError(e)) => {
+                    // TODO skip errors for non-image files, but show broken image files as broken
+                    println!("Error: {}", e);
+                    continue;
+                }
+                Err(MetadataError::UnsupportedFiletype(_)) => {
+                    // Probably not an image file, skip
+                    continue;
                 }
             }
         }
