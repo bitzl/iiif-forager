@@ -1,6 +1,5 @@
-use serde::Serialize;
 use crate::metadata::ImageMetadata;
-
+use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -91,7 +90,7 @@ pub struct Service {
     context: Uri,
     id: Uri,
     profile: Uri,
-    protocol: Uri
+    protocol: Uri,
 }
 
 impl Service {
@@ -100,10 +99,14 @@ impl Service {
         let id = Uri::new(format!("{}/{}", base_urls.image, image_id));
         let profile = Uri::new("http://iiif.io/api/image/2/level2.json".to_owned());
         let protocol = Uri::new("http://iiiif.io/api/image".to_owned());
-        Service{context, id, profile, protocol}
+        Service {
+            context,
+            id,
+            profile,
+            protocol,
+        }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]
@@ -131,7 +134,10 @@ pub struct Sequence {
 
 impl Sequence {
     pub fn new(base_urls: &BaseUrls, item_id: &str, label: &str) -> Sequence {
-        let id = Uri::new(format!("{}/{}/sequence/normal", base_urls.presentation, item_id));
+        let id = Uri::new(format!(
+            "{}/{}/sequence/normal",
+            base_urls.presentation, item_id
+        ));
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let iiif_type = "sc:Sequence".to_owned();
         let canvases: Vec<Canvas> = Vec::new();
@@ -145,9 +151,23 @@ impl Sequence {
         }
     }
 
-    pub fn add_image(&mut self, base_urls: &BaseUrls, item_id: &str, image_id: &str, label: &str, image_metadata: &ImageMetadata) {
+    pub fn add_image(
+        &mut self,
+        base_urls: &BaseUrls,
+        item_id: &str,
+        image_id: &str,
+        label: &str,
+        image_metadata: &ImageMetadata,
+    ) {
         let index = self.canvases.len();
-        let mut canvas = Canvas::new(base_urls, item_id, index, label, image_metadata.width, image_metadata.height);
+        let mut canvas = Canvas::new(
+            base_urls,
+            item_id,
+            index,
+            label,
+            image_metadata.width,
+            image_metadata.height,
+        );
         let image_resource = ImageResource::new(base_urls, item_id, image_id, image_metadata);
         let annotation = Annotation::new(Resource::Image(image_resource), (&canvas.id).clone());
         &canvas.add_image(annotation);
@@ -157,12 +177,15 @@ impl Sequence {
 
 pub struct BaseUrls {
     presentation: String,
-    image: String
+    image: String,
 }
 
 impl BaseUrls {
     pub fn new(presentation: String, image: String) -> BaseUrls {
-        BaseUrls{presentation, image}
+        BaseUrls {
+            presentation,
+            image,
+        }
     }
 }
 
@@ -179,20 +202,37 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(base_urls: &BaseUrls, item_id: &str, index: usize, label: &str, width: u32, height:u32) -> Canvas {
-        let id = Uri::new(format!("{}/{}/canvas/{}", base_urls.presentation, item_id, index));
+    pub fn new(
+        base_urls: &BaseUrls,
+        item_id: &str,
+        index: usize,
+        label: &str,
+        width: u32,
+        height: u32,
+    ) -> Canvas {
+        let id = Uri::new(format!(
+            "{}/{}/canvas/{}",
+            base_urls.presentation, item_id, index
+        ));
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let iiif_type = "sc:Canvas".to_owned();
         let images: Vec<Annotation> = Vec::new();
         let label = label.to_owned();
-        Canvas{id, context, iiif_type, label, height, width, images}
+        Canvas {
+            id,
+            context,
+            iiif_type,
+            label,
+            height,
+            width,
+            images,
+        }
     }
 
     pub fn add_image(&mut self, image: Annotation) {
         self.images.push(image);
     }
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct Thumbnail {
@@ -217,7 +257,13 @@ impl Annotation {
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let iiif_type = "oa:Annotation".to_owned();
         let motivation = "sc:painting".to_owned();
-        Annotation{context, iiif_type, motivation, resource, on}
+        Annotation {
+            context,
+            iiif_type,
+            motivation,
+            resource,
+            on,
+        }
     }
 }
 
@@ -238,13 +284,28 @@ pub struct ImageResource {
 }
 
 impl ImageResource {
-    pub fn new(base_urls: &BaseUrls, item_id: &str, image_id: &str, image_metadata: &ImageMetadata) -> ImageResource {
-        let id = Uri::new(format!("{}/{}/{}/full/full/default.{}", base_urls.image, item_id, image_id, image_metadata.extension));
+    pub fn new(
+        base_urls: &BaseUrls,
+        item_id: &str,
+        image_id: &str,
+        image_metadata: &ImageMetadata,
+    ) -> ImageResource {
+        let id = Uri::new(format!(
+            "{}/{}/{}/full/full/default.{}",
+            base_urls.image, item_id, image_id, image_metadata.extension
+        ));
         let iiif_type = "dctypes:Image".to_owned();
         let service = Service::new_image_service(base_urls, item_id);
         let format = image_metadata.format.to_owned();
         let width = image_metadata.width;
         let height = image_metadata.height;
-        ImageResource{id, iiif_type, format, service, width, height}
+        ImageResource {
+            id,
+            iiif_type,
+            format,
+            service,
+            width,
+            height,
+        }
     }
 }
