@@ -128,12 +128,11 @@ pub struct Sequence {
     id: Uri,
     #[serde(rename = "type")]
     iiif_type: String,
-    label: String,
     canvases: Vec<Canvas>,
 }
 
 impl Sequence {
-    pub fn new(base_urls: &BaseUrls, item_id: &str, label: &str) -> Sequence {
+    pub fn new(base_urls: &BaseUrls, item_id: &str) -> Sequence {
         let id = Uri::new(format!(
             "{}/{}/sequence/normal",
             base_urls.presentation, item_id
@@ -141,12 +140,10 @@ impl Sequence {
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let iiif_type = "sc:Sequence".to_owned();
         let canvases: Vec<Canvas> = Vec::new();
-        let label = label.to_owned();
         Sequence {
             context,
             id,
             iiif_type,
-            label,
             canvases,
         }
     }
@@ -177,7 +174,7 @@ impl Sequence {
     pub fn add_placeholder(&mut self, base_urls: &BaseUrls, item_id: &str, label: &str) {
         let index = self.canvases.len();
         let fake_id = format!("??? ({})", index);
-        self.add_image(base_urls, item_id, fake_id.as_str(), fake_id.as_str(), &ImageMetadata::unknown())
+        self.add_image(base_urls, item_id, fake_id.as_str(), label, &ImageMetadata::unknown())
     }
 }
 

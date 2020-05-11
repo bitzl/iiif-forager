@@ -30,6 +30,21 @@ impl ImageMetadata {
         }
     }
 
+    /// Returns true if `path` points to a file and reading metadata
+    /// is supported (based on file extension)
+    ///
+    /// # Arguments
+    /// * `path` - A PathBuf reference to check
+    pub fn is_supported(path: &PathBuf) -> bool {
+        if !path.is_file() {
+            return false;
+        }
+        match path.extension() {
+            Some(extension) => extension == "png",
+            None => false,
+        }
+    }
+
     pub fn unknown() -> ImageMetadata {
         ImageMetadata {
             format: "unknown".to_owned(),
@@ -44,8 +59,9 @@ impl ImageMetadata {
             Ok(file) => file,
             Err(e) => {
                 return Err(MetadataError::IoError(format!(
-                    "Cannot open file {}",
-                    path.to_str().unwrap()
+                    "Cannot open file {}: {}",
+                    path.to_str().unwrap(),
+                    e
                 )))
             }
         };

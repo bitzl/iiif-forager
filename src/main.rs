@@ -5,7 +5,8 @@ mod iiif;
 mod metadata;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
-use std::path::PathBuf;
+use clap;
+use std::path::{Path, PathBuf};
 
 use crate::iiif::{BaseUrls, Manifest, Metadata, Sequence};
 use crate::metadata::{ImageMetadata, MetadataError};
@@ -23,63 +24,58 @@ impl ManifestSource {
         }
     }
 
-    fn manifest_for(&self, id: &str) -> Result<Manifest, String> {
-        let metadata: Vec<Metadata> = vec![Metadata::key_value("location", id)];
-        let description = Some(id.to_owned());
-
-        let source_path = self.base_path.join(id);
+    fn manifest_for(&self, item_id: &str) -> Result<Manifest, String> {
+        let source_path = self.base_path.join(item_id);
         if !source_path.exists() {
             return Err(format!(
                 "path {} does not exist",
-                source_path.into_os_string().to_str().unwrap()
+                source_path.to_str().unwrap()
             ));
         }
         if !source_path.is_dir() {
             return Err(format!(
                 "path {} is not a directory",
-                source_path.into_os_string().to_str().unwrap()
+                source_path.to_str().unwrap()
             ));
         }
 
-        let mut sequence = Sequence::new(&self.base_urls, id, id);
-
-        for entry in std::fs::read_dir(source_path).unwrap() {
-            let file = match entry {
-                Ok(file) => file,
+        let mut sequence = Sequence::new(&self.base_urls, item_id);
+        for entry in std::fs::read_dir(&source_path).unwrap() {
+            let path = match entry {
+                Ok(file) => file.path(),
                 Err(e) => {
-                    sequence.add_placeholder(&self.base_urls, &id, &format!("Error: {}", e));
+                    println!(
+                        "Cannot read entry in {}: {}",
+                        &source_path.to_str().unwrap(),
+                        e
+                    );
                     continue;
                 }
             };
+
             // got file, get metadata
-            let path = file.path();
-            println!("file: {}", path.to_str().unwrap());
-            if !path.is_file() {
+            if !ImageMetadata::is_supported(&path) {
                 continue;
             }
 
             let file_name = path.file_name().unwrap().to_str().unwrap();
             match ImageMetadata::read(&path) {
-                Ok(image_metadata) => sequence.add_image(
-                    &self.base_urls,
-                    &id,
-                    &file_name,
-                    &file_name,
-                    &image_metadata,
-                ),
+                Ok(metadata) => {
+                    sequence.add_image(&self.base_urls, &item_id, &file_name, &file_name, &metadata)
+                }
                 Err(MetadataError::IoError(e)) => {
-                    // TODO skip errors for non-image files, but show broken image files as broken
                     println!("Error: {}", e);
-                    continue;
+                    sequence.add_placeholder(&self.base_urls, &item_id, &format!("Error: {}", e));
                 }
                 Err(MetadataError::UnsupportedFiletype(_)) => {
-                    // Probably not an image file, skip
-                    continue;
+                    // Should never happen
                 }
             }
         }
 
-        let mut manifest = Manifest::new(&self.base_urls, id, id, metadata, description);
+        let metadata: Vec<Metadata> = vec![Metadata::key_value("location", item_id)];
+        let description = Some(item_id.to_owned());
+        let mut manifest = Manifest::new(&self.base_urls, item_id, item_id, metadata, description);
         manifest.add_sequence(sequence);
         Ok(manifest)
     }
@@ -103,16 +99,47 @@ async fn index(
 }
 
 fn main() {
-    web().unwrap()
+    let matches = clap::App::new("IIIF Presenter")
+        .version("0.0.1")
+        .author("Marcus Bitzl")
+        .about("Serve manifests for images in directories")
+        .arg(
+            clap::Arg::with_name("SOURCE")
+                .help("Directory containing the image directories")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            clap::Arg::with_name("presentation_base_url")
+                .help("Base Url for all IIIF Presentation API urls")
+                .long("--presentation-api")
+                .long("-p")
+                .default_value("http://localhost:8000")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            clap::Arg::with_name("image_base_url")
+                .help("Base Url for all IIIF Image API urls")
+                .long("--image-api")
+                .long("-i")
+                .required(true)
+                .takes_value(true),
+        )
+        .get_matches();
+
+    let source = Path::new(matches.value_of("SOURCE").unwrap());
+    let base_urls = BaseUrls::new(
+        matches.value_of("presentation_base_url").unwrap().to_owned(),
+        matches.value_of("image_base_url").unwrap().to_owned()
+    );
+
+    let manifest_source = ManifestSource::new(source.to_path_buf(), base_urls);
+    web(manifest_source).unwrap()
 }
 
 #[actix_rt::main]
-async fn web() -> std::io::Result<()> {
-    let base_urls = BaseUrls::new(
-        "http://127.0.0.1:8000/iiif/presentation".to_owned(),
-        "http://127.0.0.1:8000/iiif/image".to_owned(),
-    );
-    let manifest_source = ManifestSource::new(PathBuf::new(), base_urls);
+async fn web(manifest_source: ManifestSource) -> std::io::Result<()> {
     let manifest_source_ref = web::Data::new(manifest_source);
     HttpServer::new(move || {
         App::new()
