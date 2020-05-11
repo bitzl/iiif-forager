@@ -110,12 +110,20 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            clap::Arg::with_name("bind")
+                .help("Bind address and port")
+                .long("--bind")
+                .long("-b")
+                .default_value("localhost:8989")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
             clap::Arg::with_name("presentation_base_url")
                 .help("Base Url for all IIIF Presentation API urls")
                 .long("--presentation-api")
                 .long("-p")
-                .default_value("http://localhost:8000")
-                .required(true)
+                .required(false)
                 .takes_value(true),
         )
         .arg(
@@ -129,24 +137,29 @@ fn main() {
         .get_matches();
 
     let source = Path::new(matches.value_of("SOURCE").unwrap());
+    let bind = matches.value_of("bind").unwrap();
+    let presentation_base_url = match matches.value_of("presentation_base_url") {
+        Some(url) => url.to_owned(),
+        None => format!("http://{}", bind)
+    };
     let base_urls = BaseUrls::new(
-        matches.value_of("presentation_base_url").unwrap().to_owned(),
+        presentation_base_url,
         matches.value_of("image_base_url").unwrap().to_owned()
     );
 
     let manifest_source = ManifestSource::new(source.to_path_buf(), base_urls);
-    web(manifest_source).unwrap()
+    web(manifest_source, bind.to_owned()).unwrap()
 }
 
 #[actix_rt::main]
-async fn web(manifest_source: ManifestSource) -> std::io::Result<()> {
+async fn web(manifest_source: ManifestSource, bind: String) -> std::io::Result<()> {
     let manifest_source_ref = web::Data::new(manifest_source);
     HttpServer::new(move || {
         App::new()
             .app_data(manifest_source_ref.clone())
             .service(index)
     })
-    .bind("127.0.0.1:8000")?
+    .bind(bind)?
     .run()
     .await
 }
