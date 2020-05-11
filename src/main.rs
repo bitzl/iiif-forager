@@ -47,18 +47,10 @@ impl ManifestSource {
             let file = match entry {
                 Ok(file) => file,
                 Err(e) => {
-                    let label = format!("error reading entry: {}", e);
-                    sequence.add_image(
-                        &self.base_urls,
-                        &id,
-                        "???",
-                        &label,
-                        &ImageMetadata::unknown(),
-                    );
+                    sequence.add_placeholder(&self.base_urls, &id, &format!("Error: {}", e));
                     continue;
                 }
             };
-            
             // got file, get metadata
             let path = file.path();
             println!("file: {}", path.to_str().unwrap());
