@@ -113,7 +113,7 @@ fn main() {
             clap::Arg::with_name("bind")
                 .help("Bind address and port")
                 .long("--bind")
-                .long("-b")
+                .short("-b")
                 .default_value("localhost:8989")
                 .required(true)
                 .takes_value(true),
@@ -122,7 +122,7 @@ fn main() {
             clap::Arg::with_name("presentation_base_url")
                 .help("Base Url for all IIIF Presentation API urls")
                 .long("--presentation-api")
-                .long("-p")
+                .short("-p")
                 .required(false)
                 .takes_value(true),
         )
@@ -130,7 +130,7 @@ fn main() {
             clap::Arg::with_name("image_base_url")
                 .help("Base Url for all IIIF Image API urls")
                 .long("--image-api")
-                .long("-i")
+                .short("-i")
                 .required(true)
                 .takes_value(true),
         )
