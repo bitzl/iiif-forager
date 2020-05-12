@@ -171,6 +171,7 @@ fn main() {
 
 #[actix_rt::main]
 async fn web(manifest_source: ManifestSource, bind: String) -> std::io::Result<()> {
+    println!("Starting iiif-presenter on {}", bind);
     let manifest_source_ref = web::Data::new(manifest_source);
     HttpServer::new(move || {
         App::new()
