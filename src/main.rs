@@ -14,18 +14,26 @@ use crate::metadata::{ImageMetadata, MetadataError};
 struct ManifestSource {
     base_path: PathBuf,
     base_urls: BaseUrls,
+    path_sep: String
 }
 
 impl ManifestSource {
-    fn new(base_path: PathBuf, base_urls: BaseUrls) -> ManifestSource {
+    fn new(base_path: PathBuf, base_urls: BaseUrls, path_sep: String) -> ManifestSource {
         ManifestSource {
             base_path,
             base_urls,
+            path_sep
         }
     }
 
+    fn path_for_id(&self, id: &str) -> PathBuf {
+        let os_sep = std::path::MAIN_SEPARATOR.to_string();
+        let path = id.replace(&self.path_sep, os_sep.as_str());
+        self.base_path.join(path)
+    }
+
     fn manifest_for(&self, item_id: &str) -> Result<Manifest, String> {
-        let source_path = self.base_path.join(item_id);
+        let source_path = self.path_for_id(item_id);
         if !source_path.exists() {
             return Err(format!(
                 "path {} does not exist",
@@ -61,7 +69,8 @@ impl ManifestSource {
             let file_name = path.file_name().unwrap().to_str().unwrap();
             match ImageMetadata::read(&path) {
                 Ok(metadata) => {
-                    sequence.add_image(&self.base_urls, &item_id, &file_name, &file_name, &metadata)
+                    let image_id = format!("{}{}{}", &item_id, self.path_sep, &file_name);
+                    sequence.add_image(&self.base_urls, &item_id, &image_id, &file_name, &metadata)
                 }
                 Err(MetadataError::IoError(e)) => {
                     println!("Error: {}", e);
@@ -91,7 +100,6 @@ async fn index(
     match manifest_source.get_ref().manifest_for(&path.to_string()) {
         Ok(manifest) => {
             let data = serde_json::to_string(&manifest).unwrap();
-            println!("data = {}", data);
             HttpResponse::Ok().body(data)
         }
         Err(e) => HttpResponse::InternalServerError().body(e),
@@ -134,6 +142,15 @@ fn main() {
                 .required(true)
                 .takes_value(true),
         )
+        .arg(
+            clap::Arg::with_name("url_path_sep")
+                .help("Separator for paths when turning these into ids")
+                .long("--url-path-sep")
+                .short("-u")
+                .default_value("-")
+                .required(true)
+                .takes_value(true),
+        )
         .get_matches();
 
     let source = Path::new(matches.value_of("SOURCE").unwrap());
@@ -146,8 +163,9 @@ fn main() {
         presentation_base_url,
         matches.value_of("image_base_url").unwrap().to_owned()
     );
+    let path_sep = matches.value_of("url_path_sep").unwrap().to_owned();
 
-    let manifest_source = ManifestSource::new(source.to_path_buf(), base_urls);
+    let manifest_source = ManifestSource::new(source.to_path_buf(), base_urls, path_sep);
     web(manifest_source, bind.to_owned()).unwrap()
 }
 

@@ -5,8 +5,8 @@ use serde::Serialize;
 #[serde(untagged)]
 pub enum Value {
     Single(String),
-    Many(Vec<String>),
-    Multilang(Vec<LocalizedValue>),
+    // Many(Vec<String>),
+    // Multilang(Vec<LocalizedValue>),
 }
 
 #[derive(Debug, Serialize)]
@@ -81,13 +81,16 @@ impl Manifest {
 
 #[derive(Debug, Serialize)]
 pub struct Image {
+    #[serde(rename = "@id")]
     id: Uri,
     service: Service,
 }
 
 #[derive(Debug, Serialize)]
 pub struct Service {
+    #[serde(rename = "@context")]
     context: Uri,
+    #[serde(rename = "@id")]
     id: Uri,
     profile: Uri,
     protocol: Uri,
@@ -124,9 +127,11 @@ impl Uri {
 
 #[derive(Debug, Serialize)]
 pub struct Sequence {
+    #[serde(rename = "@context")]
     context: Uri,
+    #[serde(rename = "@id")]
     id: Uri,
-    #[serde(rename = "type")]
+    #[serde(rename = "@type")]
     iiif_type: String,
     canvases: Vec<Canvas>,
 }
@@ -165,7 +170,7 @@ impl Sequence {
             image_metadata.width,
             image_metadata.height,
         );
-        let image_resource = ImageResource::new(base_urls, item_id, image_id, image_metadata);
+        let image_resource = ImageResource::new(base_urls, image_id, image_metadata);
         let annotation = Annotation::new(Resource::Image(image_resource), (&canvas.id).clone());
         &canvas.add_image(annotation);
         self.canvases.push(canvas);
@@ -194,9 +199,11 @@ impl BaseUrls {
 
 #[derive(Debug, Serialize)]
 pub struct Canvas {
+    #[serde(rename = "@id")]
     id: Uri,
+    #[serde(rename = "@context")]
     context: Uri,
-    #[serde(rename = "type")]
+    #[serde(rename = "@type")]
     iiif_type: String,
     label: String,
     height: u32,
@@ -247,8 +254,9 @@ pub struct Thumbnail {
 
 #[derive(Debug, Serialize)]
 pub struct Annotation {
+    #[serde(rename = "@context")]
     context: Uri,
-    #[serde(rename = "type")]
+    #[serde(rename = "@type")]
     iiif_type: String,
     motivation: String,
     resource: Resource,
@@ -271,14 +279,16 @@ impl Annotation {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(untagged)]
 pub enum Resource {
     Image(ImageResource),
 }
 
 #[derive(Debug, Serialize)]
 pub struct ImageResource {
+    #[serde(rename = "@id")]
     id: Uri,
-    #[serde(rename = "type")]
+    #[serde(rename = "@type")]
     iiif_type: String,
     format: String,
     service: Service,
@@ -289,16 +299,15 @@ pub struct ImageResource {
 impl ImageResource {
     pub fn new(
         base_urls: &BaseUrls,
-        item_id: &str,
         image_id: &str,
         image_metadata: &ImageMetadata,
     ) -> ImageResource {
         let id = Uri::new(format!(
-            "{}/{}/{}/full/full/default.{}",
-            base_urls.image, item_id, image_id, image_metadata.extension
+            "{}/{}/full/full/0/default.{}",
+            base_urls.image, image_id, image_metadata.extension
         ));
         let iiif_type = "dctypes:Image".to_owned();
-        let service = Service::new_image_service(base_urls, item_id);
+        let service = Service::new_image_service(base_urls, image_id);
         let format = image_metadata.format.to_owned();
         let width = image_metadata.width;
         let height = image_metadata.height;
