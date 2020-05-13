@@ -1,5 +1,8 @@
 use crate::metadata::ImageMetadata;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use serde::Serialize;
+
+use url::Url;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -51,14 +54,14 @@ pub struct Manifest {
 impl Manifest {
     pub fn new(
         base_urls: &BaseUrls,
-        item_id: &str,
+        item_id: &Id,
         label: &str,
         metadata: Vec<Metadata>,
         description: Option<String>,
         // thumbnail: Image,
         // see_also: Repeated<Uri>,
     ) -> Manifest {
-        let id = Uri::new(format!("{}/{}/manifest", base_urls.presentation, item_id));
+        let id = Uri::new(format!("{}/{}/manifest", base_urls.presentation, item_id.encoded));
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let sequences: Vec<Sequence> = Vec::new();
         Manifest {
@@ -76,6 +79,19 @@ impl Manifest {
 
     pub fn add_sequence(&mut self, sequence: Sequence) {
         self.sequences.push(sequence);
+    }
+}
+
+pub struct Id {
+    pub value: String,
+    pub encoded: String,
+}
+
+impl Id {
+    pub fn new(value: &str) -> Id {
+        let encoded = value.replace("/", "%2F");
+        let value = value.to_owned();
+        Id { value, encoded }
     }
 }
 
@@ -97,9 +113,9 @@ pub struct Service {
 }
 
 impl Service {
-    fn new_image_service(base_urls: &BaseUrls, image_id: &str) -> Service {
+    fn new_image_service(base_urls: &BaseUrls, image_id: &Id) -> Service {
         let context = Uri::new("http://iiif.io/api/image/2/context.json".to_owned());
-        let id = Uri::new(format!("{}/{}", base_urls.image, image_id));
+        let id = Uri::new(format!("{}/{}", base_urls.image, image_id.encoded));
         let profile = Uri::new("http://iiif.io/api/image/2/level2.json".to_owned());
         let protocol = Uri::new("http://iiiif.io/api/image".to_owned());
         Service {
@@ -137,10 +153,10 @@ pub struct Sequence {
 }
 
 impl Sequence {
-    pub fn new(base_urls: &BaseUrls, item_id: &str) -> Sequence {
+    pub fn new(base_urls: &BaseUrls, item_id: &Id) -> Sequence {
         let id = Uri::new(format!(
             "{}/{}/sequence/normal",
-            base_urls.presentation, item_id
+            base_urls.presentation, item_id.encoded
         ));
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let iiif_type = "sc:Sequence".to_owned();
@@ -156,8 +172,8 @@ impl Sequence {
     pub fn add_image(
         &mut self,
         base_urls: &BaseUrls,
-        item_id: &str,
-        image_id: &str,
+        item_id: &Id,
+        image_id: &Id,
         label: &str,
         image_metadata: &ImageMetadata,
     ) {
@@ -176,10 +192,16 @@ impl Sequence {
         self.canvases.push(canvas);
     }
 
-    pub fn add_placeholder(&mut self, base_urls: &BaseUrls, item_id: &str, label: &str) {
+    pub fn add_placeholder(&mut self, base_urls: &BaseUrls, item_id: &Id, label: &str) {
         let index = self.canvases.len();
         let fake_id = format!("??? ({})", index);
-        self.add_image(base_urls, item_id, fake_id.as_str(), label, &ImageMetadata::unknown())
+        self.add_image(
+            base_urls,
+            item_id,
+            &Id::new(fake_id.as_str()),
+            label,
+            &ImageMetadata::unknown(),
+        )
     }
 }
 
@@ -214,7 +236,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(
         base_urls: &BaseUrls,
-        item_id: &str,
+        item_id: &Id,
         index: usize,
         label: &str,
         width: u32,
@@ -222,7 +244,7 @@ impl Canvas {
     ) -> Canvas {
         let id = Uri::new(format!(
             "{}/{}/canvas/{}",
-            base_urls.presentation, item_id, index
+            base_urls.presentation, item_id.encoded, index
         ));
         let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
         let iiif_type = "sc:Canvas".to_owned();
@@ -299,12 +321,12 @@ pub struct ImageResource {
 impl ImageResource {
     pub fn new(
         base_urls: &BaseUrls,
-        image_id: &str,
+        image_id: &Id,
         image_metadata: &ImageMetadata,
     ) -> ImageResource {
         let id = Uri::new(format!(
             "{}/{}/full/full/0/default.{}",
-            base_urls.image, image_id, image_metadata.extension
+            base_urls.image, image_id.value.replace("/", "%2F"), image_metadata.extension
         ));
         let iiif_type = "dctypes:Image".to_owned();
         let service = Service::new_image_service(base_urls, image_id);

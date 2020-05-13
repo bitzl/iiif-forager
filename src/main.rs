@@ -8,7 +8,7 @@ use actix_web::{web, App, HttpResponse, HttpServer};
 use clap;
 use std::path::{Path, PathBuf};
 
-use crate::iiif::{BaseUrls, Manifest, Metadata, Sequence};
+use crate::iiif::{BaseUrls, Id, Manifest, Metadata, Sequence};
 use crate::metadata::{ImageMetadata, MetadataError};
 
 struct ManifestSource {
@@ -26,13 +26,13 @@ impl ManifestSource {
         }
     }
 
-    fn path_for_id(&self, id: &str) -> PathBuf {
+    fn path_for_id(&self, id: &Id) -> PathBuf {
         let os_sep = std::path::MAIN_SEPARATOR.to_string();
-        let path = id.replace(&self.path_sep, os_sep.as_str());
+        let path = id.value.replace(&self.path_sep, os_sep.as_str());
         self.base_path.join(path)
     }
 
-    fn manifest_for(&self, item_id: &str) -> Result<Manifest, String> {
+    fn manifest_for(&self, item_id: &Id) -> Result<Manifest, String> {
         let source_path = self.path_for_id(item_id);
         if !source_path.exists() {
             return Err(format!(
@@ -69,7 +69,7 @@ impl ManifestSource {
             let file_name = path.file_name().unwrap().to_str().unwrap();
             match ImageMetadata::read(&path) {
                 Ok(metadata) => {
-                    let image_id = format!("{}{}{}", &item_id, self.path_sep, &file_name);
+                    let image_id = Id::new(format!("{}{}{}", item_id.value, self.path_sep, &file_name).as_str());
                     sequence.add_image(&self.base_urls, &item_id, &image_id, &file_name, &metadata)
                 }
                 Err(MetadataError::IoError(e)) => {
@@ -82,9 +82,9 @@ impl ManifestSource {
             }
         }
 
-        let metadata: Vec<Metadata> = vec![Metadata::key_value("location", item_id)];
-        let description = Some(item_id.to_owned());
-        let mut manifest = Manifest::new(&self.base_urls, item_id, item_id, metadata, description);
+        let metadata: Vec<Metadata> = vec![Metadata::key_value("location", item_id.value.as_str())];
+        let description = Some(item_id.value.clone());
+        let mut manifest = Manifest::new(&self.base_urls, item_id, item_id.value.as_str(), metadata, description);
         manifest.add_sequence(sequence);
         Ok(manifest)
     }
@@ -97,7 +97,8 @@ async fn index(
     path: web::Path<String>,
 ) -> HttpResponse {
     println!("Url-Path: {}", path.to_string());
-    match manifest_source.get_ref().manifest_for(&path.to_string()) {
+    let id = Id::new(&path.to_string());
+    match manifest_source.get_ref().manifest_for(&id) {
         Ok(manifest) => {
             let data = serde_json::to_string(&manifest).unwrap();
             HttpResponse::Ok().body(data)
@@ -171,7 +172,7 @@ fn main() {
 
 #[actix_rt::main]
 async fn web(manifest_source: ManifestSource, bind: String) -> std::io::Result<()> {
-    println!("Starting iiif-presenter on {}", bind);
+    println!("Starting iiif-presenter on http://{}", bind);
     let manifest_source_ref = web::Data::new(manifest_source);
     HttpServer::new(move || {
         App::new()
