@@ -1,8 +1,5 @@
 use crate::metadata::ImageMetadata;
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use serde::Serialize;
-
-use url::Url;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]

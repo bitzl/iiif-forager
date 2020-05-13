@@ -100,8 +100,7 @@ async fn index(
     let id = Id::new(&path.to_string());
     match manifest_source.get_ref().manifest_for(&id) {
         Ok(manifest) => {
-            let data = serde_json::to_string(&manifest).unwrap();
-            HttpResponse::Ok().body(data)
+            HttpResponse::Ok().json(manifest)
         }
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
