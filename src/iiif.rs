@@ -1,6 +1,8 @@
 use crate::metadata::ImageMetadata;
 use serde::Serialize;
 
+const CONTEXT: &'static str = "http://iiif.io/api/presentation/2/context.json";
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum Value {
@@ -50,7 +52,7 @@ pub struct Manifest {
 
 impl Manifest {
     pub fn new(
-        base_urls: &BaseUrls,
+        iiif_urls: &IiifUrls,
         item_id: &Id,
         label: &str,
         metadata: Vec<Metadata>,
@@ -58,8 +60,8 @@ impl Manifest {
         // thumbnail: Image,
         // see_also: Repeated<Uri>,
     ) -> Manifest {
-        let id = Uri::new(format!("{}/{}/manifest", base_urls.presentation, item_id.encoded));
-        let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
+        let id = iiif_urls.manifest_id(item_id);
+        let context = Uri::new(CONTEXT);
         let sequences: Vec<Sequence> = Vec::new();
         Manifest {
             context: context,
@@ -68,8 +70,6 @@ impl Manifest {
             label: label.to_owned(),
             metadata: metadata,
             description: description,
-            // thumbnail: thumbnail,
-            // see_also: see_also,
             sequences: sequences,
         }
     }
@@ -110,9 +110,9 @@ pub struct Service {
 }
 
 impl Service {
-    fn new_image_service(base_urls: &BaseUrls, image_id: &Id) -> Service {
+    fn new_image_service(iiif_urls: &IiifUrls, image_id: &Id) -> Service {
         let context = Uri::new("http://iiif.io/api/image/2/context.json".to_owned());
-        let id = Uri::new(format!("{}/{}", base_urls.image, image_id.encoded));
+        let id = iiif_urls.image_service_id(image_id);
         let profile = Uri::new("http://iiif.io/api/image/2/level2.json".to_owned());
         let protocol = Uri::new("http://iiiif.io/api/image".to_owned());
         Service {
@@ -131,9 +131,9 @@ pub struct Uri {
 }
 
 impl Uri {
-    pub fn new(value: String) -> Uri {
+    pub fn new<S: Into<String>>(value: S) -> Uri {
         Uri {
-            value: value.to_owned(),
+            value: value.into(),
         }
     }
 }
@@ -150,12 +150,9 @@ pub struct Sequence {
 }
 
 impl Sequence {
-    pub fn new(base_urls: &BaseUrls, item_id: &Id) -> Sequence {
-        let id = Uri::new(format!(
-            "{}/{}/sequence/normal",
-            base_urls.presentation, item_id.encoded
-        ));
-        let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
+    pub fn new(iiif_urls: &IiifUrls, item_id: &Id) -> Sequence {
+        let id = iiif_urls.sequence_id(item_id);
+        let context = Uri::new(CONTEXT);
         let iiif_type = "sc:Sequence".to_owned();
         let canvases: Vec<Canvas> = Vec::new();
         Sequence {
@@ -168,7 +165,7 @@ impl Sequence {
 
     pub fn add_image(
         &mut self,
-        base_urls: &BaseUrls,
+        base_urls: &IiifUrls,
         item_id: &Id,
         image_id: &Id,
         label: &str,
@@ -189,7 +186,7 @@ impl Sequence {
         self.canvases.push(canvas);
     }
 
-    pub fn add_placeholder(&mut self, base_urls: &BaseUrls, item_id: &Id, label: &str) {
+    pub fn add_placeholder(&mut self, base_urls: &IiifUrls, item_id: &Id, label: &str) {
         let index = self.canvases.len();
         let fake_id = format!("??? ({})", index);
         self.add_image(
@@ -202,17 +199,48 @@ impl Sequence {
     }
 }
 
-pub struct BaseUrls {
+pub struct IiifUrls {
     presentation: String,
     image: String,
 }
 
-impl BaseUrls {
-    pub fn new(presentation: String, image: String) -> BaseUrls {
-        BaseUrls {
+impl IiifUrls {
+    pub fn new(presentation: String, image: String) -> IiifUrls {
+        IiifUrls {
             presentation,
             image,
         }
+    }
+
+    pub fn canvas_id(&self, item_id: &Id, index: usize) -> Uri {
+        Uri::new(format!(
+            "{}/{}/canvas/{}",
+            self.presentation, item_id.encoded, index
+        ))
+    }
+    pub fn manifest_id(&self, item_id: &Id) -> Uri {
+        Uri::new(format!(
+            "{}/{}/manifest",
+            self.presentation, item_id.encoded
+        ))
+    }
+
+    pub fn image_id(&self, image_id: &Id, image_metadata: &ImageMetadata) -> Uri {
+        Uri::new(format!(
+            "{}/{}/full/full/0/default.{}",
+            self.image, image_id.encoded, image_metadata.extension
+        ))
+    }
+
+    pub fn sequence_id(&self, item_id: &Id) -> Uri {
+        Uri::new(format!(
+            "{}/{}/sequence/normal",
+            self.presentation, item_id.encoded
+        ))
+    }
+
+    pub fn image_service_id(&self, image_id: &Id) -> Uri {
+        Uri::new(format!("{}/{}", self.image, image_id.encoded))
     }
 }
 
@@ -232,18 +260,15 @@ pub struct Canvas {
 
 impl Canvas {
     pub fn new(
-        base_urls: &BaseUrls,
+        iiif_urls: &IiifUrls,
         item_id: &Id,
         index: usize,
         label: &str,
         width: u32,
         height: u32,
     ) -> Canvas {
-        let id = Uri::new(format!(
-            "{}/{}/canvas/{}",
-            base_urls.presentation, item_id.encoded, index
-        ));
-        let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
+        let id = iiif_urls.canvas_id(&item_id, index);
+        let context = Uri::new(CONTEXT);
         let iiif_type = "sc:Canvas".to_owned();
         let images: Vec<Annotation> = Vec::new();
         let label = label.to_owned();
@@ -284,7 +309,7 @@ pub struct Annotation {
 
 impl Annotation {
     pub fn new(resource: Resource, on: Uri) -> Annotation {
-        let context = Uri::new("http://iiif.io/api/presentation/2/context.json".to_owned());
+        let context = Uri::new(CONTEXT);
         let iiif_type = "oa:Annotation".to_owned();
         let motivation = "sc:painting".to_owned();
         Annotation {
@@ -317,16 +342,13 @@ pub struct ImageResource {
 
 impl ImageResource {
     pub fn new(
-        base_urls: &BaseUrls,
+        iiif_urls: &IiifUrls,
         image_id: &Id,
         image_metadata: &ImageMetadata,
     ) -> ImageResource {
-        let id = Uri::new(format!(
-            "{}/{}/full/full/0/default.{}",
-            base_urls.image, image_id.value.replace("/", "%2F"), image_metadata.extension
-        ));
+        let id = iiif_urls.image_id(image_id, image_metadata);
         let iiif_type = "dctypes:Image".to_owned();
-        let service = Service::new_image_service(base_urls, image_id);
+        let service = Service::new_image_service(iiif_urls, image_id);
         let format = image_metadata.format.to_owned();
         let width = image_metadata.width;
         let height = image_metadata.height;

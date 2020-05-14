@@ -8,21 +8,21 @@ use actix_web::{web, App, HttpResponse, HttpServer};
 use clap;
 use std::path::{Path, PathBuf};
 
-use crate::iiif::{BaseUrls, Id, Manifest, Metadata, Sequence};
+use crate::iiif::{Id, IiifUrls, Manifest, Metadata, Sequence};
 use crate::metadata::{ImageMetadata, MetadataError};
 
 struct ManifestSource {
     base_path: PathBuf,
-    base_urls: BaseUrls,
-    path_sep: String
+    base_urls: IiifUrls,
+    path_sep: String,
 }
 
 impl ManifestSource {
-    fn new(base_path: PathBuf, base_urls: BaseUrls, path_sep: String) -> ManifestSource {
+    fn new(base_path: PathBuf, base_urls: IiifUrls, path_sep: String) -> ManifestSource {
         ManifestSource {
             base_path,
             base_urls,
-            path_sep
+            path_sep,
         }
     }
 
@@ -69,7 +69,9 @@ impl ManifestSource {
             let file_name = path.file_name().unwrap().to_str().unwrap();
             match ImageMetadata::read(&path) {
                 Ok(metadata) => {
-                    let image_id = Id::new(format!("{}{}{}", item_id.value, self.path_sep, &file_name).as_str());
+                    let image_id = Id::new(
+                        format!("{}{}{}", item_id.value, self.path_sep, &file_name).as_str(),
+                    );
                     sequence.add_image(&self.base_urls, &item_id, &image_id, &file_name, &metadata)
                 }
                 Err(MetadataError::IoError(e)) => {
@@ -84,7 +86,13 @@ impl ManifestSource {
 
         let metadata: Vec<Metadata> = vec![Metadata::key_value("location", item_id.value.as_str())];
         let description = Some(item_id.value.clone());
-        let mut manifest = Manifest::new(&self.base_urls, item_id, item_id.value.as_str(), metadata, description);
+        let mut manifest = Manifest::new(
+            &self.base_urls,
+            item_id,
+            item_id.value.as_str(),
+            metadata,
+            description,
+        );
         manifest.add_sequence(sequence);
         Ok(manifest)
     }
@@ -99,9 +107,7 @@ async fn index(
     println!("Url-Path: {}", path.to_string());
     let id = Id::new(&path.to_string());
     match manifest_source.get_ref().manifest_for(&id) {
-        Ok(manifest) => {
-            HttpResponse::Ok().json(manifest)
-        }
+        Ok(manifest) => HttpResponse::Ok().json(manifest),
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
 }
@@ -157,11 +163,11 @@ fn main() {
     let bind = matches.value_of("bind").unwrap();
     let presentation_base_url = match matches.value_of("presentation_base_url") {
         Some(url) => url.to_owned(),
-        None => format!("http://{}", bind)
+        None => format!("http://{}", bind),
     };
-    let base_urls = BaseUrls::new(
+    let base_urls = IiifUrls::new(
         presentation_base_url,
-        matches.value_of("image_base_url").unwrap().to_owned()
+        matches.value_of("image_base_url").unwrap().to_owned(),
     );
     let path_sep = matches.value_of("url_path_sep").unwrap().to_owned();
 
