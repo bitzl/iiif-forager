@@ -1,9 +1,9 @@
 use crate::metadata::ImageMetadata;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 const CONTEXT: &'static str = "http://iiif.io/api/presentation/2/context.json";
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Value {
     Single(String),
@@ -11,13 +11,13 @@ pub enum Value {
     // Multilang(Vec<LocalizedValue>),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct LocalizedValue {
     value: String,
     language: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Metadata {
     label: String,
     value: Value,
