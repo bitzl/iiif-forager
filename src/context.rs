@@ -1,4 +1,4 @@
-use crate::iiif::Metadata;
+use crate::iiif::metadata::Metadata;
 use serde::Deserialize;
 use serde_json;
 use std::error::Error;
@@ -40,7 +40,7 @@ impl Context {
 mod tests {
 
     use crate::context::Context;
-    use crate::iiif::{LocalizedValue, Metadata};
+    use crate::iiif::metadata::{LocalizedValue, Metadata};
 
     #[test]
     fn load_json() {

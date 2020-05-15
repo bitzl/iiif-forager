@@ -1,59 +1,12 @@
+pub mod metadata;
+pub mod types;
+
+use crate::iiif::metadata::Metadata;
+use crate::iiif::types::{Id, IiifUrls, Uri};
 use crate::metadata::ImageMetadata;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 const PRESENTATION: &str = "http://iiif.io/api/presentation/2/context.json";
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(untagged)]
-pub enum Value {
-    Single(String),
-    Many(Vec<String>),
-    Multilang(Vec<LocalizedValue>),
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct LocalizedValue {
-    #[serde(rename = "@value")]
-    value: String,
-    #[serde(rename = "@language")]
-    language: String,
-}
-
-impl LocalizedValue {
-    pub fn new<S: Into<String>>(value: S, language: S) -> LocalizedValue {
-        LocalizedValue {
-            value: value.into(),
-            language: language.into(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct Metadata {
-    pub label: String,
-    pub value: Value,
-}
-
-impl Metadata {
-    pub fn key_value<S: Into<String>>(label: S, value: S) -> Metadata {
-        Metadata {
-            label: label.into(),
-            value: Value::Single(value.into()),
-        }
-    }
-    pub fn list<S: Into<String>>(label: S, values: Vec<String>) -> Metadata {
-        Metadata {
-            label: label.into(),
-            value: Value::Many(values),
-        }
-    }
-    pub fn localized<S: Into<String>>(label: S, values: Vec<LocalizedValue>) -> Metadata {
-        Metadata {
-            label: label.into(),
-            value: Value::Multilang(values),
-        }
-    }
-}
 
 #[derive(Debug, Serialize)]
 enum IiifType {
@@ -113,19 +66,6 @@ impl Manifest {
     }
 }
 
-pub struct Id {
-    pub value: String,
-    pub encoded: String,
-}
-
-impl Id {
-    pub fn new<S: Into<String>>(value: S) -> Id {
-        let value = value.into();
-        let encoded = value.replace("/", "%2F");
-        Id { value, encoded }
-    }
-}
-
 #[derive(Debug, Serialize)]
 pub struct Image {
     #[serde(rename = "@id")]
@@ -150,20 +90,6 @@ impl Service {
             id: iiif_urls.image_service_id(image_id),
             profile: Uri::new("http://iiif.io/api/image/2/level2.json"),
             protocol: Uri::new("http://iiiif.io/api/image".to_owned()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(transparent)]
-pub struct Uri {
-    value: String,
-}
-
-impl Uri {
-    pub fn new<S: Into<String>>(value: S) -> Uri {
-        Uri {
-            value: value.into(),
         }
     }
 }
@@ -222,51 +148,6 @@ impl Sequence {
             label,
             &ImageMetadata::unknown(),
         )
-    }
-}
-
-pub struct IiifUrls {
-    presentation: String,
-    image: String,
-}
-
-impl IiifUrls {
-    pub fn new(presentation: String, image: String) -> IiifUrls {
-        IiifUrls {
-            presentation,
-            image,
-        }
-    }
-
-    pub fn canvas_id(&self, item_id: &Id, index: usize) -> Uri {
-        Uri::new(format!(
-            "{}/{}/canvas/{}",
-            self.presentation, item_id.encoded, index
-        ))
-    }
-    pub fn manifest_id(&self, item_id: &Id) -> Uri {
-        Uri::new(format!(
-            "{}/{}/manifest",
-            self.presentation, item_id.encoded
-        ))
-    }
-
-    pub fn image_id(&self, image_id: &Id, image_metadata: &ImageMetadata) -> Uri {
-        Uri::new(format!(
-            "{}/{}/full/full/0/default.{}",
-            self.image, image_id.encoded, image_metadata.extension
-        ))
-    }
-
-    pub fn sequence_id(&self, item_id: &Id) -> Uri {
-        Uri::new(format!(
-            "{}/{}/sequence/normal",
-            self.presentation, item_id.encoded
-        ))
-    }
-
-    pub fn image_service_id(&self, image_id: &Id) -> Uri {
-        Uri::new(format!("{}/{}", self.image, image_id.encoded))
     }
 }
 

@@ -10,7 +10,9 @@ use clap;
 use std::path::{Path, PathBuf};
 
 use crate::context::Context;
-use crate::iiif::{Id, IiifUrls, Manifest, Metadata, Sequence};
+use crate::iiif::metadata::Metadata;
+use crate::iiif::types::{Id, IiifUrls};
+use crate::iiif::{Manifest, Sequence};
 use crate::metadata::{ImageMetadata, MetadataError};
 
 struct ManifestSource {
