@@ -1,33 +1,56 @@
 use crate::metadata::ImageMetadata;
 use serde::{Deserialize, Serialize};
 
-const CONTEXT: &'static str = "http://iiif.io/api/presentation/2/context.json";
+const PRESENTATION: &str = "http://iiif.io/api/presentation/2/context.json";
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum Value {
     Single(String),
-    // Many(Vec<String>),
-    // Multilang(Vec<LocalizedValue>),
+    Many(Vec<String>),
+    Multilang(Vec<LocalizedValue>),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct LocalizedValue {
+    #[serde(rename = "@value")]
     value: String,
+    #[serde(rename = "@language")]
     language: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+impl LocalizedValue {
+    pub fn new<S: Into<String>>(value: S, language: S) -> LocalizedValue {
+        LocalizedValue {
+            value: value.into(),
+            language: language.into(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Metadata {
-    label: String,
-    value: Value,
+    pub label: String,
+    pub value: Value,
 }
 
 impl Metadata {
-    pub fn key_value(label: &str, value: &str) -> Metadata {
+    pub fn key_value<S: Into<String>>(label: S, value: S) -> Metadata {
         Metadata {
-            label: label.to_owned(),
-            value: Value::Single(value.to_owned()),
+            label: label.into(),
+            value: Value::Single(value.into()),
+        }
+    }
+    pub fn list<S: Into<String>>(label: S, values: Vec<String>) -> Metadata {
+        Metadata {
+            label: label.into(),
+            value: Value::Many(values),
+        }
+    }
+    pub fn localized<S: Into<String>>(label: S, values: Vec<LocalizedValue>) -> Metadata {
+        Metadata {
+            label: label.into(),
+            value: Value::Multilang(values),
         }
     }
 }
@@ -38,6 +61,7 @@ enum IiifType {
     Annotation,
     #[serde(rename = "sc:Canvas")]
     Canvas,
+    #[serde(rename = "dctypes:Image")]
     Image,
     #[serde(rename = "sc:Manifest")]
     Manifest,
@@ -74,7 +98,7 @@ impl Manifest {
         description: Option<String>,
     ) -> Manifest {
         Manifest {
-            context: Uri::new(CONTEXT),
+            context: Uri::new(PRESENTATION),
             id: iiif_urls.manifest_id(item_id),
             iiif_type: IiifType::Manifest,
             label: label.to_owned(),
@@ -122,9 +146,9 @@ pub struct Service {
 impl Service {
     fn new_image_service(iiif_urls: &IiifUrls, image_id: &Id) -> Service {
         Service {
-            context: Uri::new("http://iiif.io/api/image/2/context.json".to_owned()),
+            context: Uri::new("http://iiif.io/api/image/2/context.json"),
             id: iiif_urls.image_service_id(image_id),
-            profile: Uri::new("http://iiif.io/api/image/2/level2.json".to_owned()),
+            profile: Uri::new("http://iiif.io/api/image/2/level2.json"),
             protocol: Uri::new("http://iiiif.io/api/image".to_owned()),
         }
     }
@@ -158,7 +182,7 @@ pub struct Sequence {
 impl Sequence {
     pub fn new(iiif_urls: &IiifUrls, item_id: &Id) -> Sequence {
         Sequence {
-            context: Uri::new(CONTEXT),
+            context: Uri::new(PRESENTATION),
             id: iiif_urls.sequence_id(item_id),
             iiif_type: IiifType::Sequence,
             canvases: Vec::new(),
@@ -271,7 +295,7 @@ impl Canvas {
     ) -> Canvas {
         Canvas {
             id: iiif_urls.canvas_id(&item_id, index),
-            context: Uri::new(CONTEXT),
+            context: Uri::new(PRESENTATION),
             iiif_type: IiifType::Canvas,
             label: label.to_owned(),
             height,
@@ -307,7 +331,7 @@ pub struct Annotation {
 impl Annotation {
     pub fn new(resource: Resource, on: Uri) -> Annotation {
         Annotation {
-            context: Uri::new(CONTEXT),
+            context: Uri::new(PRESENTATION),
             iiif_type: IiifType::Annotation,
             motivation: Motivation::Painting,
             resource,

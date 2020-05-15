@@ -9,6 +9,7 @@ use actix_web::{web, App, HttpResponse, HttpServer};
 use clap;
 use std::path::{Path, PathBuf};
 
+use crate::context::Context;
 use crate::iiif::{Id, IiifUrls, Manifest, Metadata, Sequence};
 use crate::metadata::{ImageMetadata, MetadataError};
 
@@ -36,28 +37,26 @@ impl ManifestSource {
     fn manifest_for(&self, item_id: &Id) -> Result<Manifest, String> {
         let source_path = self.path_for_id(item_id);
         if !source_path.exists() {
-            return Err(format!(
-                "path {} does not exist",
-                source_path.to_str().unwrap()
-            ));
+            return Err(format!("path {} does not exist", source_path.display()));
         }
         if !source_path.is_dir() {
-            return Err(format!(
-                "path {} is not a directory",
-                source_path.to_str().unwrap()
-            ));
+            return Err(format!("path {} is not a directory", source_path.display()));
         }
+
+        let context = match Context::load(&source_path) {
+            Ok(value) => value,
+            Err(e) => {
+                println!("Could not load context file: {}", e);
+                Context::empty()
+            }
+        };
 
         let mut sequence = Sequence::new(&self.base_urls, item_id);
         for entry in std::fs::read_dir(&source_path).unwrap() {
             let path = match entry {
                 Ok(file) => file.path(),
                 Err(e) => {
-                    println!(
-                        "Cannot read entry in {}: {}",
-                        &source_path.to_str().unwrap(),
-                        e
-                    );
+                    println!("Cannot read entry in {}: {}", source_path.display(), e);
                     continue;
                 }
             };
@@ -85,8 +84,10 @@ impl ManifestSource {
             }
         }
 
-        let metadata: Vec<Metadata> = vec![Metadata::key_value("location", item_id.value.as_str())];
-        let description = Some(item_id.value.clone());
+        let description = Option::from(context.description.unwrap_or(item_id.value.clone()));
+        let mut metadata = context.metadata;
+        metadata.push(Metadata::key_value("location", &item_id.value));
+
         let mut manifest = Manifest::new(
             &self.base_urls,
             item_id,
@@ -100,7 +101,6 @@ impl ManifestSource {
 }
 
 #[get("/{id:.*}/manifest")]
-// async fn index(manifest_source: web::Data<ManifestSource>, path: web::Path<String>) -> HttpResponse {
 async fn index(
     manifest_source: web::Data<ManifestSource>,
     path: web::Path<String>,
