@@ -1,4 +1,4 @@
-use crate::metadata::ImageMetadata;
+use crate::image::metadata::ImageMetadata;
 use serde::Serialize;
 
 pub struct Id {

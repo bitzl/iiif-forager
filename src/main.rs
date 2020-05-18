@@ -3,7 +3,7 @@ extern crate actix_web;
 
 mod context;
 mod iiif;
-mod metadata;
+mod image;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use clap;
@@ -13,7 +13,7 @@ use crate::context::Context;
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls};
 use crate::iiif::{Manifest, Sequence};
-use crate::metadata::{ImageMetadata, MetadataError};
+use crate::image::metadata::{ImageMetadata, MetadataError};
 
 struct ManifestSource {
     base_path: PathBuf,
@@ -69,6 +69,7 @@ impl ManifestSource {
             }
 
             let file_name = path.file_name().unwrap().to_str().unwrap();
+
             match ImageMetadata::read(&path) {
                 Ok(metadata) => {
                     let image_id = Id::new(

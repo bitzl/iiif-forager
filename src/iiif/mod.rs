@@ -3,7 +3,7 @@ pub mod types;
 
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls, Uri};
-use crate::metadata::ImageMetadata;
+use crate::image::metadata::ImageMetadata;
 use serde::Serialize;
 
 const PRESENTATION: &str = "http://iiif.io/api/presentation/2/context.json";
