@@ -3,7 +3,8 @@ pub mod types;
 
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls, Uri};
-use crate::image::metadata::ImageMetadata;
+use crate::image::{ImageInfo, Label};
+
 use serde::Serialize;
 
 const PRESENTATION: &str = "http://iiif.io/api/presentation/2/context.json";
@@ -121,7 +122,7 @@ impl Sequence {
         item_id: &Id,
         image_id: &Id,
         label: &str,
-        image_metadata: &ImageMetadata,
+        image_info: &ImageInfo,
     ) {
         let index = self.canvases.len();
         let mut canvas = Canvas::new(
@@ -129,25 +130,13 @@ impl Sequence {
             item_id,
             index,
             label,
-            image_metadata.width,
-            image_metadata.height,
+            image_info.width,
+            image_info.height,
         );
-        let image_resource = ImageResource::new(base_urls, image_id, image_metadata);
+        let image_resource = ImageResource::new(base_urls, image_id, image_info);
         let annotation = Annotation::new(Resource::Image(image_resource), (&canvas.id).clone());
         &canvas.add_image(annotation);
         self.canvases.push(canvas);
-    }
-
-    pub fn add_placeholder(&mut self, base_urls: &IiifUrls, item_id: &Id, label: &str) {
-        let index = self.canvases.len();
-        let fake_id = format!("??? ({})", index);
-        self.add_image(
-            base_urls,
-            item_id,
-            &Id::new(fake_id),
-            label,
-            &ImageMetadata::unknown(),
-        )
     }
 }
 
@@ -240,18 +229,14 @@ pub struct ImageResource {
 }
 
 impl ImageResource {
-    pub fn new(
-        iiif_urls: &IiifUrls,
-        image_id: &Id,
-        image_metadata: &ImageMetadata,
-    ) -> ImageResource {
+    pub fn new(iiif_urls: &IiifUrls, image_id: &Id, image_info: &ImageInfo) -> ImageResource {
         ImageResource {
-            id: iiif_urls.image_id(image_id, image_metadata),
+            id: iiif_urls.image_id(image_id, &image_info.format),
             iiif_type: IiifType::Image,
-            format: image_metadata.format.to_owned(),
+            format: image_info.format.media_type().to_owned(),
             service: Service::new_image_service(iiif_urls, image_id),
-            width: image_metadata.width,
-            height: image_metadata.height,
+            width: image_info.width,
+            height: image_info.height,
         }
     }
 }

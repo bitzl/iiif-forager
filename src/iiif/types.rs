@@ -1,5 +1,6 @@
-use crate::image::metadata::ImageMetadata;
 use serde::Serialize;
+
+use crate::image::Format;
 
 pub struct Id {
     pub value: String,
@@ -54,10 +55,12 @@ impl IiifUrls {
         ))
     }
 
-    pub fn image_id(&self, image_id: &Id, image_metadata: &ImageMetadata) -> Uri {
+    pub fn image_id(&self, image_id: &Id, format: &Format) -> Uri {
         Uri::new(format!(
             "{}/{}/full/full/0/default.{}",
-            self.image, image_id.encoded, image_metadata.extension
+            self.image,
+            image_id.encoded,
+            format.extension()
         ))
     }
 

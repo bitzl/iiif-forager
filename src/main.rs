@@ -7,13 +7,14 @@ mod image;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use clap;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use crate::context::Context;
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls};
 use crate::iiif::{Manifest, Sequence};
-use crate::image::metadata::{ImageMetadata, MetadataError};
+use crate::image::ImageInfo;
 
 struct ManifestSource {
     base_path: PathBuf,
@@ -63,26 +64,25 @@ impl ManifestSource {
                 }
             };
 
-            // got file, get metadata
-            if !ImageMetadata::is_supported(&path) {
-                continue;
-            }
-
-            let file_name = path.file_name().unwrap().to_str().unwrap();
-
-            match ImageMetadata::read(&path) {
-                Ok(metadata) => {
+            match ImageInfo::for_file(&path) {
+                Some(image_info) => {
+                    let file_name = match path.file_name().and_then(OsStr::to_str) {
+                        Some(file_name) => file_name,
+                        None => continue, // should not happen, but if it does there is nothing we can do
+                    };
                     let image_id = Id::new(
                         format!("{}{}{}", item_id.value, self.path_sep, &file_name).as_str(),
                     );
-                    sequence.add_image(&self.base_urls, &item_id, &image_id, &file_name, &metadata)
+                    sequence.add_image(
+                        &self.base_urls,
+                        &item_id,
+                        &image_id,
+                        &file_name,
+                        &image_info,
+                    )
                 }
-                Err(MetadataError::IoError(e)) => {
-                    println!("Error: {}", e);
-                    sequence.add_placeholder(&self.base_urls, &item_id, &format!("Error: {}", e));
-                }
-                Err(MetadataError::UnsupportedFiletype(_)) => {
-                    // Should never happen
+                None => {
+                    // cant't make sense of file, skipping
                 }
             }
         }

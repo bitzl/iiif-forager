@@ -6,7 +6,9 @@ use nom::{
     number::complete::{be_u32, be_u8},
     IResult,
 };
-use std::fs::IOError;
+
+use std::fs::File;
+use std::io::prelude::*;
 use std::path::PathBuf;
 
 const PNG_SIGNATURE: &[u8] = &[137, 80, 78, 71, 13, 10, 26, 10];
@@ -14,17 +16,22 @@ const ONE: u32 = 1 as u32;
 
 #[derive(Debug, PartialEq)]
 pub struct PNG {
-    chunks: Vec<Chunk>,
+    pub width: u32,
+    pub height: u32,
+    pub chunks: Vec<Chunk>,
 }
 
 impl PNG {
-    pub fn load(path: &Path) -> Result<PNG, std::io::Error> {
+    pub fn load(path: &PathBuf) -> Result<PNG, std::io::Error> {
         let mut data = Vec::new();
-        let mut file = File::open("photo.png").unwrap();
+        let mut file = File::open(path).unwrap();
         file.read_to_end(&mut data).unwrap();
         match parse_png(&data) {
             Ok((_, png)) => Ok(png),
-            Err(e) => std::io::Error(std::io::ErrorKind::InvalidData, "could not parse png"),
+            Err(e) => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "could not parse png",
+            )),
         }
     }
 }
@@ -34,37 +41,25 @@ pub enum Chunk {
     // IHDR
     ImageHeader(ImageHeader, u32),
     // PLTE
-    Palette(Vec<u8>, u32),
     // IEND
     End,
     // tRNS
-    Transparency(Vec<u8>, u32),
     // cHRM
-    ColorSpace(Vec<u8>, u32),
     // gAMA
     ImageGamma(u32, u32),
     // iCCP
-    ICC(Vec<u8>, u32),
     // sBit
-    SignificantBits(Vec<u8>, u32),
     // sRGB
-    SRGB(u8, u32),
     // tEXt - Keyword null Text
     Text(String, String, u32),
     // iTXt
     InternationalText(InternationalText, u32),
     // zTXt
-    CompressedText(Vec<u8>, u32),
     // bKGD
-    BackgroundColor(Vec<u8>, u32),
     // hIST
-    ImageHistogram(Vec<u8>, u32),
     // pHYs
-    PhysicalPixelDimensions(u32, u32, u8, u32),
     // sPLT
-    SuggestedPalette(Vec<u8>, u32),
     // tIME
-    Timestamp(Vec<u8>, u32),
     // All chunks we don't know or support yet
     Other(String, Vec<u8>, u32),
 }
@@ -93,7 +88,26 @@ pub struct InternationalText {
 pub fn parse_png(input: &[u8]) -> IResult<&[u8], PNG> {
     let (input, _signature) = tag(PNG_SIGNATURE)(input)?;
     let (input, chunks) = many0(parse_chunk)(input)?;
-    Ok((input, PNG { chunks }))
+    let image_header = chunks.iter().find_map(|chunk| match chunk {
+        Chunk::ImageHeader(image_header, _crc) => Some(image_header),
+        _ => None,
+    });
+    match image_header {
+        Some(header) => Ok((
+            input,
+            PNG {
+                width: header.width,
+                height: header.height,
+                chunks,
+            },
+        )),
+        None => {
+            return Err(nom::Err::Error(nom::error::ParseError::from_error_kind(
+                input,
+                nom::error::ErrorKind::Eof,
+            )));
+        }
+    }
 }
 
 fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
@@ -244,8 +258,8 @@ mod tests {
     use std::fs::File;
     use std::io::Read;
 
-    use crate::parse_png;
-    use crate::Chunk;
+    use crate::image::png::parse_png;
+    use crate::image::png::Chunk;
 
     #[test]
     fn it_works() {
@@ -269,7 +283,6 @@ mod tests {
                 Chunk::Other(chunk_type, _value, _crc) => {
                     println!("{}: OtherChunk of type {}", i, chunk_type)
                 }
-                _ => println!("Unknown chunk"),
             }
         }
     }
