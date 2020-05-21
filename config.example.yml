@@ -1,0 +1,12 @@
+# Which directory shall be served where (host and port)?
+serving:
+  path: samples
+  host: localhost
+  port: 7890
+
+# The urls part is important for the public facing user interaction
+# and will end up in the generated JSON.
+urls:
+  path sep: -
+  image api: http://localhost:1234/iiif/image/v2
+  presentation api: http://localhost:1234/iiif/presentation/v2
