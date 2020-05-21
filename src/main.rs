@@ -118,7 +118,7 @@ async fn index(
 }
 
 fn main() {
-    let matches = clap::App::new("IIIF Presenter")
+    let matches = clap::App::new("IIIF Forager")
         .version("0.0.1")
         .author("Marcus Bitzl")
         .about("Serve manifests for images in directories")
