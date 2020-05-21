@@ -21,10 +21,14 @@ enum IiifType {
     Manifest,
     #[serde(rename = "sc:Sequence")]
     Sequence,
+    #[serde(rename = "dctypes:Text")]
+    Text,
 }
 
 #[derive(Debug, Serialize)]
 enum Motivation {
+    #[serde(rename = "oa:commenting")]
+    Commenting,
     #[serde(rename = "sc:Painting")]
     Painting,
 }
@@ -136,6 +140,15 @@ impl Sequence {
         let image_resource = ImageResource::new(base_urls, image_id, image_info);
         let annotation = Annotation::new(Resource::Image(image_resource), (&canvas.id).clone());
         &canvas.add_image(annotation);
+        for label in &image_info.labels {
+            let body = match label {
+                crate::image::Label::KV(key, value) => {
+                    format!("<strong>{}:</strong> {}", key, value)
+                }
+            };
+            let annotation = Annotation::comment(body, &canvas.id);
+            canvas.add_annotation(annotation);
+        }
         self.canvases.push(canvas);
     }
 }
@@ -152,6 +165,7 @@ pub struct Canvas {
     height: u32,
     width: u32,
     images: Vec<Annotation>,
+    annotations: Vec<Annotation>,
 }
 
 impl Canvas {
@@ -171,11 +185,16 @@ impl Canvas {
             height,
             width,
             images: Vec::new(),
+            annotations: Vec::new(),
         }
     }
 
     pub fn add_image(&mut self, image: Annotation) {
         self.images.push(image);
+    }
+
+    pub fn add_annotation(&mut self, annotation: Annotation) {
+        self.annotations.push(annotation)
     }
 }
 
@@ -208,12 +227,47 @@ impl Annotation {
             on,
         }
     }
+    pub fn comment(body: String, on: &Uri) -> Annotation {
+        // "@context": "http://iiif.io/api/presentation/2/context.json",
+        // "@id": "http://example.org/iiif/book1/annotation/anno1",
+        // "@type": "oa:Annotation",
+        // "motivation": "oa:commenting",
+        // "resource":{
+        //     "@id": "http://example.org/iiif/book1/res/comment1.html",
+        //     "@type": "dctypes:Text",
+        //     "format": "text/html"
+        // },
+        // "on": "http://example.org/iiif/book1/canvas/p1"
+        let resource = CommentResource {
+            iiif_type: IiifType::Text,
+            format: "text/html".to_owned(),
+            body,
+        };
+        Annotation {
+            context: Uri::new(PRESENTATION),
+            iiif_type: IiifType::Annotation,
+            motivation: Motivation::Commenting,
+            resource: Resource::Comment(resource),
+            on: on.to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum Resource {
+    Comment(CommentResource),
     Image(ImageResource),
+}
+
+#[derive(Debug, Serialize)]
+pub struct CommentResource {
+    // #[serde(rename = "@id")]
+    // id: Uri,
+    #[serde(rename = "@type")]
+    iiif_type: IiifType,
+    format: String,
+    body: String,
 }
 
 #[derive(Debug, Serialize)]

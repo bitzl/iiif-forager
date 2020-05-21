@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate actix_web;
 
+mod config;
 mod context;
 mod iiif;
 mod image;
