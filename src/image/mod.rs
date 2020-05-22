@@ -46,6 +46,20 @@ impl ImageInfo {
                     labels,
                 })
             }
+            Some("jpg") | Some("jpeg") => {
+                let jpg = match immeta::load_from_file(path) {
+                    Ok(value) => value,
+                    Err(_) => return None,
+                };
+
+                let dimensions = jpg.dimensions();
+                Some(ImageInfo {
+                    format: Format::JPEG,
+                    width: dimensions.width,
+                    height: dimensions.height,
+                    labels: Vec::new(),
+                })
+            }
             _ => None,
         }
     }
