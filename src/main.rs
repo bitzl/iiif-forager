@@ -11,6 +11,7 @@ use clap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use crate::config::Config;
 use crate::context::Context;
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls};
@@ -123,61 +124,27 @@ fn main() {
         .author("Marcus Bitzl")
         .about("Serve manifests for images in directories")
         .arg(
-            clap::Arg::with_name("SOURCE")
-                .help("Directory containing the image directories")
-                .required(true)
-                .takes_value(true),
-        )
-        .arg(
-            clap::Arg::with_name("bind")
-                .help("Bind address and port")
-                .long("--bind")
-                .short("-b")
-                .default_value("localhost:8989")
-                .required(true)
-                .takes_value(true),
-        )
-        .arg(
-            clap::Arg::with_name("presentation_base_url")
-                .help("Base Url for all IIIF Presentation API urls")
-                .long("--presentation-api")
-                .short("-p")
-                .required(false)
-                .takes_value(true),
-        )
-        .arg(
-            clap::Arg::with_name("image_base_url")
-                .help("Base Url for all IIIF Image API urls")
-                .long("--image-api")
-                .short("-i")
-                .required(true)
-                .takes_value(true),
-        )
-        .arg(
-            clap::Arg::with_name("url_path_sep")
-                .help("Separator for paths when turning these into ids")
-                .long("--url-path-sep")
-                .short("-u")
-                .default_value("-")
+            clap::Arg::with_name("CONFIG")
+                .help("Path to configuration file")
                 .required(true)
                 .takes_value(true),
         )
         .get_matches();
 
-    let source = Path::new(matches.value_of("SOURCE").unwrap());
-    let bind = matches.value_of("bind").unwrap();
-    let presentation_base_url = match matches.value_of("presentation_base_url") {
-        Some(url) => url.to_owned(),
-        None => format!("http://{}", bind),
+    let config_path = Path::new(matches.value_of("CONFIG").unwrap());
+    let config = match Config::load(config_path) {
+        Ok(config) => config,
+        Err(e) => {
+            println!("Could not load config, exiting: {}", e);
+            return;
+        }
     };
-    let base_urls = IiifUrls::new(
-        presentation_base_url,
-        matches.value_of("image_base_url").unwrap().to_owned(),
-    );
-    let path_sep = matches.value_of("url_path_sep").unwrap().to_owned();
 
-    let manifest_source = ManifestSource::new(source.to_path_buf(), base_urls, path_sep);
-    web(manifest_source, bind.to_owned()).unwrap()
+    let source = PathBuf::from(&config.serving.path);
+    let base_urls = IiifUrls::new(&config.urls.presentation_api, &config.urls.image_api);
+
+    let manifest_source = ManifestSource::new(source, base_urls, config.urls.path_sep.clone());
+    web(manifest_source, config.serving.bind()).unwrap()
 }
 
 #[actix_rt::main]

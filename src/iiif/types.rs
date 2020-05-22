@@ -35,10 +35,10 @@ pub struct IiifUrls {
 }
 
 impl IiifUrls {
-    pub fn new(presentation: String, image: String) -> IiifUrls {
+    pub fn new<S: Into<String>>(presentation: S, image: S) -> IiifUrls {
         IiifUrls {
-            presentation,
-            image,
+            presentation: presentation.into(),
+            image: image.into(),
         }
     }
 
