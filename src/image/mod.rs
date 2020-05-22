@@ -47,16 +47,27 @@ impl ImageInfo {
                 })
             }
             Some("jpg") | Some("jpeg") => {
-                let jpg = match immeta::load_from_file(path) {
-                    Ok(value) => value,
+                let dimensions = match imagesize::size(path) {
+                    Ok(dim) => dim,
                     Err(_) => return None,
                 };
 
-                let dimensions = jpg.dimensions();
                 Some(ImageInfo {
                     format: Format::JPEG,
-                    width: dimensions.width,
-                    height: dimensions.height,
+                    width: dimensions.width as u32,
+                    height: dimensions.height as u32,
+                    labels: Vec::new(),
+                })
+            }
+            Some("tif") | Some("tiff") => {
+                let dimensions = match imagesize::size(path) {
+                    Ok(dim) => dim,
+                    Err(_) => return None,
+                };
+                Some(ImageInfo {
+                    format: Format::TIFF,
+                    width: dimensions.width as u32,
+                    height: dimensions.height as u32,
                     labels: Vec::new(),
                 })
             }
