@@ -26,7 +26,7 @@ pub struct Urls {
 }
 
 impl Config {
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Config, Box<std::error::Error>> {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn std::error::Error>> {
         let f = std::fs::File::open(path.as_ref())?;
         let config: Config = serde_yaml::from_reader(f)?;
         Ok(config)
