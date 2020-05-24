@@ -1,5 +1,5 @@
 [package]
-name = "iiif-presenter"
+name = "iiif-forager"
 version = "0.1.0"
 authors = ["Marcus Bitzl <marcus@bitzl.io>"]
 edition = "2018"
