@@ -57,15 +57,13 @@ impl ManifestSource {
         };
 
         let mut sequence = Sequence::new(&self.base_urls, item_id);
-        for entry in std::fs::read_dir(&source_path).unwrap() {
-            let path = match entry {
-                Ok(file) => file.path(),
-                Err(e) => {
-                    println!("Cannot read entry in {}: {}", source_path.display(), e);
-                    continue;
-                }
-            };
-
+        let mut dir_entries: Vec<_> = std::fs::read_dir(&source_path)
+            .unwrap()
+            .map(|p| p.unwrap())
+            .collect();
+        dir_entries.sort_by_key(|dir_entry| dir_entry.path());
+        for entry in dir_entries {
+            let path = entry.path();
             match ImageInfo::for_file(&path) {
                 Some(image_info) => {
                     let file_name = match path.file_name().and_then(OsStr::to_str) {
