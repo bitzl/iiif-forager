@@ -3,11 +3,11 @@ pub mod types;
 
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls, Uri};
-use crate::image::{ImageInfo, Label};
+use crate::image::ImageInfo;
 
 use serde::Serialize;
 
-const PRESENTATION: &str = "http://iiif.io/api/presentation/2/context.json";
+const PRESENTATION: &str = "http://iiif.io/api/presentation/3/context.json";
 
 #[derive(Debug, Serialize)]
 enum Motivation {
