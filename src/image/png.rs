@@ -30,7 +30,7 @@ impl PNG {
             Ok((_, png)) => Ok(png),
             Err(e) => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                "could not parse png",
+                format!("could not parse png: {}", e),
             )),
         }
     }

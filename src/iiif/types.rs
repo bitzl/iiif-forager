@@ -42,6 +42,20 @@ impl IiifUrls {
         }
     }
 
+    pub fn annotation_page_id(&self, item_id: &Id, index: usize) -> Uri {
+        Uri::new(format!(
+            "{}/{}/page/{}",
+            self.presentation, item_id.encoded, index
+        ))
+    }
+
+    pub fn annotation_id(&self, item_id: &Id, page: usize, suffix: &str) -> Uri {
+        Uri::new(format!(
+            "{}/{}/annotation/{}-{}",
+            self.presentation, item_id.encoded, page, suffix
+        ))
+    }
+
     pub fn canvas_id(&self, item_id: &Id, index: usize) -> Uri {
         Uri::new(format!(
             "{}/{}/canvas/{}",
@@ -61,13 +75,6 @@ impl IiifUrls {
             self.image,
             image_id.encoded,
             format.extension()
-        ))
-    }
-
-    pub fn sequence_id(&self, item_id: &Id) -> Uri {
-        Uri::new(format!(
-            "{}/{}/sequence/normal",
-            self.presentation, item_id.encoded
         ))
     }
 

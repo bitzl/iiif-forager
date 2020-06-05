@@ -15,7 +15,7 @@ use crate::config::Config;
 use crate::context::Context;
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls};
-use crate::iiif::{Manifest, Sequence};
+use crate::iiif::Manifest;
 use crate::image::ImageInfo;
 
 struct ManifestSource {
@@ -56,7 +56,18 @@ impl ManifestSource {
             }
         };
 
-        let mut sequence = Sequence::new(&self.base_urls, item_id);
+        let description = Option::from(context.description.unwrap_or(item_id.value.clone()));
+        let mut metadata = context.metadata;
+        metadata.push(Metadata::key_value("location", &item_id.value));
+
+        let mut manifest = Manifest::new(
+            &self.base_urls,
+            item_id,
+            item_id.value.as_str(),
+            metadata,
+            description,
+        );
+
         let mut dir_entries: Vec<_> = std::fs::read_dir(&source_path)
             .unwrap()
             .map(|p| p.unwrap())
@@ -73,7 +84,7 @@ impl ManifestSource {
                     let image_id = Id::new(
                         format!("{}{}{}", item_id.value, self.path_sep, &file_name).as_str(),
                     );
-                    sequence.add_image(
+                    manifest.add_image(
                         &self.base_urls,
                         &item_id,
                         &image_id,
@@ -86,19 +97,6 @@ impl ManifestSource {
                 }
             }
         }
-
-        let description = Option::from(context.description.unwrap_or(item_id.value.clone()));
-        let mut metadata = context.metadata;
-        metadata.push(Metadata::key_value("location", &item_id.value));
-
-        let mut manifest = Manifest::new(
-            &self.base_urls,
-            item_id,
-            item_id.value.as_str(),
-            metadata,
-            description,
-        );
-        manifest.add_sequence(sequence);
         Ok(manifest)
     }
 }
