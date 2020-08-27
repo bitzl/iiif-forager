@@ -1,21 +1,22 @@
 use serde::Deserialize;
 use serde_yaml;
 use std::path::Path;
+use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Config {
     pub serving: Serving,
     pub urls: Urls,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Serving {
-    pub path: String,
+    pub path: PathBuf,
     pub host: String,
     pub port: u32,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Urls {
     #[serde(rename = "path sep")]
     pub path_sep: String,

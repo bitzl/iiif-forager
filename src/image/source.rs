@@ -2,7 +2,7 @@ use crate::image::Format;
 use crate::image::Label;
 
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::image::png::{Chunk, PNG};
 
@@ -19,6 +19,11 @@ pub struct ImageSource {
 }
 
 impl ImageSource {
+    pub fn new(path: &Path) -> ImageSource {
+        ImageSource {
+            path: path.to_path_buf(),
+        }
+    }
     pub fn load(&self, sub_path: &str) -> Vec<Image> {
         let source_path = self.path.join(sub_path);
         let mut dir_entries: Vec<_> = std::fs::read_dir(&source_path)
