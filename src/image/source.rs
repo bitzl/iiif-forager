@@ -1,25 +1,56 @@
-pub mod metadata;
-mod png;
-pub mod source;
+use crate::image::Format;
+use crate::image::Label;
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
-use png::{Chunk, PNG};
+use crate::image::png::{Chunk, PNG};
 
-#[derive(Debug, PartialEq)]
-pub struct ImageInfo {
+pub struct Image {
     pub format: Format,
+    pub name: String,
     pub width: u32,
     pub height: u32,
     pub labels: Vec<Label>,
 }
 
-impl ImageInfo {
-    pub fn for_file(path: &PathBuf) -> Option<ImageInfo> {
-        if path.extension().is_none() {
-            return None;
+pub struct ImageSource {
+    path: PathBuf,
+}
+
+impl ImageSource {
+    pub fn load(&self, sub_path: &str) -> Vec<Image> {
+        let source_path = self.path.join(sub_path);
+        let mut dir_entries: Vec<_> = std::fs::read_dir(&source_path)
+            .unwrap()
+            .map(|p| p.unwrap())
+            .collect();
+        dir_entries.sort_by_key(|dir_entry| dir_entry.path());
+
+        for entry in dir_entries {
+            let path = entry.path();
         }
+
+        vec![Image {
+            format: Format::PNG,
+            name: "abc".to_owned(),
+            width: 128,
+            height: 128,
+            labels: Vec::new(),
+        }]
+    }
+}
+
+impl Image {
+    pub fn for_file(path: &PathBuf) -> Option<Image> {
+        if path.extension().is_none() {
+            return None; // Skip if it's not an image and has no extension
+        }
+
+        let name: String = match path.file_name() {
+            Some(n) => n.to_str().unwrap().to_owned(),
+            None => String::new(),
+        };
 
         match path.extension().and_then(OsStr::to_str) {
             Some("png") => {
@@ -40,7 +71,8 @@ impl ImageInfo {
                     })
                     .collect();
 
-                Some(ImageInfo {
+                Some(Image {
+                    name,
                     format: Format::PNG,
                     width: png.width,
                     height: png.height,
@@ -53,7 +85,8 @@ impl ImageInfo {
                     Err(_) => return None,
                 };
 
-                Some(ImageInfo {
+                Some(Image {
+                    name,
                     format: Format::JPEG,
                     width: dimensions.width as u32,
                     height: dimensions.height as u32,
@@ -65,7 +98,8 @@ impl ImageInfo {
                     Ok(dim) => dim,
                     Err(_) => return None,
                 };
-                Some(ImageInfo {
+                Some(Image {
+                    name,
                     format: Format::TIFF,
                     width: dimensions.width as u32,
                     height: dimensions.height as u32,
@@ -73,50 +107,6 @@ impl ImageInfo {
                 })
             }
             _ => None,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Format {
-    PNG,
-    JPEG,
-    TIFF,
-}
-
-impl Format {
-    pub fn extension(&self) -> &str {
-        match self {
-            Format::PNG => "png",
-            Format::JPEG => "jpg",
-            Format::TIFF => "tif",
-        }
-    }
-
-    pub fn media_type(&self) -> &str {
-        match self {
-            Format::PNG => "image/png",
-            Format::JPEG => "image/jpeg",
-            Format::TIFF => "image/tiff",
-        }
-    }
-}
-
-impl std::fmt::Display for Format {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.media_type())
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Label {
-    KV(String, String),
-}
-
-impl std::fmt::Display for Label {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Label::KV(key, value) => write!(f, "{}: {}", key, value),
         }
     }
 }

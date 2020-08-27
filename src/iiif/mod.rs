@@ -3,7 +3,7 @@ pub mod types;
 
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls, Uri};
-use crate::image::ImageInfo;
+use crate::image::source::Image;
 
 use serde::Serialize;
 
@@ -51,7 +51,7 @@ impl Manifest {
         item_id: &Id,
         image_id: &Id,
         label: &str,
-        image_info: &ImageInfo,
+        image: &Image,
     ) {
         let index = self.items.len();
         let mut canvas = Canvas::new(
@@ -59,10 +59,10 @@ impl Manifest {
             item_id,
             index,
             label,
-            image_info.width,
-            image_info.height,
+            image.width,
+            image.height,
         );
-        let image_resource = Image::new(iiif_urls, image_id, image_info);
+        let image_resource = IiifImage::new(iiif_urls, image_id, image);
         let annotation = Annotation::new(
             iiif_urls.annotation_id(item_id, index, "image"),
             Resource::Image(image_resource),
@@ -73,7 +73,7 @@ impl Manifest {
             items: vec![annotation],
         };
         &canvas.add_item(annotation_page);
-        for label in &image_info.labels {
+        for label in &image.labels {
             let body = match label {
                 crate::image::Label::KV(key, value) => {
                     format!("<strong>{}:</strong> {}", key, value)
@@ -154,12 +154,12 @@ impl Annotation {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum Resource {
-    Image(Image),
+    Image(IiifImage),
 }
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")]
-pub struct Image {
+pub struct IiifImage {
     id: Uri,
     format: String,
     service: ImageService2,
@@ -167,14 +167,14 @@ pub struct Image {
     height: u32,
 }
 
-impl Image {
-    pub fn new(iiif_urls: &IiifUrls, image_id: &Id, image_info: &ImageInfo) -> Image {
-        Image {
-            id: iiif_urls.image_id(image_id, &image_info.format),
-            format: image_info.format.media_type().to_owned(),
+impl IiifImage {
+    pub fn new(iiif_urls: &IiifUrls, image_id: &Id, image: &Image) -> IiifImage {
+        IiifImage {
+            id: iiif_urls.image_id(image_id, &image.format),
+            format: image.format.media_type().to_owned(),
             service: ImageService2::new(iiif_urls.image_service_id(&image_id)),
-            width: image_info.width,
-            height: image_info.height,
+            width: image.width,
+            height: image.height,
         }
     }
 }

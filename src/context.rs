@@ -28,6 +28,14 @@ impl Context {
         }
         Ok(Context::empty())
     }
+
+    pub fn load_or_default<P: AsRef<Path>>(path: P) -> Context {
+        match Context::load(path) {
+            Ok(context) => context,
+            Err(_) => Context::empty()
+        }
+    }
+
     pub const fn empty() -> Context {
         Context {
             description: None,

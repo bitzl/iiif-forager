@@ -17,6 +17,9 @@ use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, IiifUrls};
 use crate::iiif::Manifest;
 use crate::image::ImageInfo;
+use crate::image::source::ImageSource;
+use crate::image::source::Image;
+
 
 struct ManifestSource {
     base_path: PathBuf,
@@ -73,46 +76,34 @@ impl ManifestSource {
             .map(|p| p.unwrap())
             .collect();
         dir_entries.sort_by_key(|dir_entry| dir_entry.path());
-        for entry in dir_entries {
-            let path = entry.path();
-            match ImageInfo::for_file(&path) {
-                Some(image_info) => {
-                    let file_name = match path.file_name().and_then(OsStr::to_str) {
-                        Some(file_name) => file_name,
-                        None => continue, // should not happen, but if it does there is nothing we can do
-                    };
-                    let image_id = Id::new(
-                        format!("{}{}{}", item_id.value, self.path_sep, &file_name).as_str(),
-                    );
-                    manifest.add_image(
-                        &self.base_urls,
-                        &item_id,
-                        &image_id,
-                        &file_name,
-                        &image_info,
-                    )
-                }
-                None => {
-                    // cant't make sense of file, skipping
-                }
-            }
-        }
+        // for entry in dir_entries {
+        //     let path = entry.path();
+        //     match ImageInfo::for_file(&path) {
+        //         Some(image_info) => {
+        //             let file_name = match path.file_name().and_then(OsStr::to_str) {
+        //                 Some(file_name) => file_name,
+        //                 None => continue, // should not happen, but if it does there is nothing we can do
+        //             };
+        //             let image_id = Id::new(
+        //                 format!("{}{}{}", item_id.value, self.path_sep, &file_name).as_str(),
+        //             );
+        //             manifest.add_image(
+        //                 &self.base_urls,
+        //                 &item_id,
+        //                 &image_id,
+        //                 &file_name,
+        //                 &image_info,
+        //             )
+        //         }
+        //         None => {
+        //             // cant't make sense of file, skipping
+        //         }
+        //     }
+        // }
         Ok(manifest)
     }
 }
 
-#[get("/{id:.*}/manifest")]
-async fn index(
-    manifest_source: web::Data<ManifestSource>,
-    path: web::Path<String>,
-) -> HttpResponse {
-    println!("Url-Path: {}", path.to_string());
-    let id = Id::new(&path.to_string());
-    match manifest_source.get_ref().manifest_for(&id) {
-        Ok(manifest) => HttpResponse::Ok().json(manifest),
-        Err(e) => HttpResponse::InternalServerError().body(e),
-    }
-}
 
 fn main() {
     let matches = clap::App::new("IIIF Forager")
@@ -155,4 +146,52 @@ async fn web(manifest_source: ManifestSource, bind: String) -> std::io::Result<(
     .bind(bind)?
     .run()
     .await
+}
+
+struct ManifestGenerator {
+    config: Config,
+    iiif_urls: IiifUrls,
+}
+
+impl ManifestGenerator {
+    pub fn manifest_for(&self, id: &str, images: Vec<Image>) -> Result<Manifest, String> {
+        let source_path = Path::new("something");
+        let item_id = Id::new(id.replace("/", &self.config.urls.path_sep));
+        let context = Context::load_or_default(&source_path);
+        let mut manifest = Manifest::new(
+            &self.iiif_urls,
+            &item_id,
+            &id,
+            context.metadata,
+            context.description);
+        for image in images {
+            let image_id = Id::new(
+                format!("{}{}{}", item_id.value, &self.config.urls.path_sep, image.name).as_str(),
+            );
+            manifest.add_image(
+                &self.iiif_urls,
+                &item_id,
+                &image_id,
+                &image.name,
+                &image
+            )
+        
+        }
+        Ok(manifest)
+    }
+}
+
+#[get("/{id:.*}/manifest")]
+async fn index(
+    image_source: web::Data<ImageSource>,
+    manifest_generator: web::Data<ManifestGenerator>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    println!("Url-Path: {}", path.to_string());
+    let id = path.to_string();
+    let images = image_source.load(&id);
+    match manifest_generator.get_ref().manifest_for(&id, images) {
+        Ok(manifest) => HttpResponse::Ok().json(manifest),
+        Err(e) => HttpResponse::InternalServerError().body(e),
+    }
 }
