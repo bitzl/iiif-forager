@@ -32,17 +32,15 @@ impl ImageSource {
             .collect();
         dir_entries.sort_by_key(|dir_entry| dir_entry.path());
 
-        for entry in dir_entries {
+        let mut images = Vec::with_capacity(dir_entries.len());
+        for entry in dir_entries.iter() {
             let path = entry.path();
+            match Image::for_file(&path) {
+                Some(image) => images.push(image),
+                None => (),
+            }
         }
-
-        vec![Image {
-            format: Format::PNG,
-            name: "abc".to_owned(),
-            width: 128,
-            height: 128,
-            labels: Vec::new(),
-        }]
+        images
     }
 }
 
