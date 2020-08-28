@@ -118,7 +118,10 @@ async fn index(
 ) -> HttpResponse {
     println!("Url-Path: {}", path.to_string());
     let id = path.to_string();
-    let images = image_source.load(&id);
+    let images = match image_source.load(&id) {
+        Some(images) => images,
+        None => return HttpResponse::NotFound().body(id),
+    };
     match manifest_generator.get_ref().manifest_for(&id, images) {
         Ok(manifest) => HttpResponse::Ok().json(manifest),
         Err(e) => HttpResponse::InternalServerError().body(e),

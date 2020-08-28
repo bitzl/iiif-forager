@@ -24,8 +24,18 @@ impl ImageSource {
             path: path.to_path_buf(),
         }
     }
-    pub fn load(&self, sub_path: &str) -> Vec<Image> {
+
+    /// Returns all images in a directory inside self.path.
+    /// This can also be an empty list if there are no images
+    /// or None if the directory does not exist.
+    ///
+    pub fn load(&self, sub_path: &str) -> Option<Vec<Image>> {
         let source_path = self.path.join(sub_path);
+
+        if !source_path.exists() {
+            return None;
+        }
+
         let mut dir_entries: Vec<_> = std::fs::read_dir(&source_path)
             .unwrap()
             .map(|p| p.unwrap())
@@ -40,7 +50,7 @@ impl ImageSource {
                 None => (),
             }
         }
-        images
+        Some(images)
     }
 }
 
