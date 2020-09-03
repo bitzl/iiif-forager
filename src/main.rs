@@ -12,7 +12,7 @@ use std::path::Path;
 
 use crate::config::Config;
 use crate::context::Context;
-use crate::iiif::types::{Id, IiifUrls};
+use crate::iiif::types::Id;
 use crate::iiif::Manifest;
 use crate::image::source::Image;
 use crate::image::source::ImageSource;
@@ -74,13 +74,11 @@ async fn web(
 
 struct ManifestGenerator {
     config: Config,
-    iiif_urls: IiifUrls,
 }
 
 impl ManifestGenerator {
     pub fn new(config: Config) -> ManifestGenerator {
-        let iiif_urls = IiifUrls::new(&config.urls.presentation_api, &config.urls.image_api);
-        ManifestGenerator { config, iiif_urls }
+        ManifestGenerator { config }
     }
     pub fn manifest_for(&self, id: &str, images: Vec<Image>) -> Result<Manifest, String> {
         let os_sep = std::path::MAIN_SEPARATOR.to_string();
@@ -90,7 +88,7 @@ impl ManifestGenerator {
         let item_id = Id::new(id.replace("/", &self.config.urls.path_sep));
         let context = Context::load_or_default(&source_path);
         let mut manifest = Manifest::new(
-            &self.iiif_urls,
+            &self.config.urls.presentation_api,
             &item_id,
             &id,
             context.metadata,
@@ -104,7 +102,15 @@ impl ManifestGenerator {
                 )
                 .as_str(),
             );
-            manifest.add_image(&self.iiif_urls, &item_id, &image_id, &image.name, &image)
+            let urls = &self.config.urls;
+            manifest.add_image(
+                &urls.image_api,
+                &urls.presentation_api,
+                &item_id,
+                &image_id,
+                &image.name,
+                &image,
+            )
         }
         Ok(manifest)
     }

@@ -2,15 +2,16 @@ pub mod metadata;
 pub mod types;
 
 use crate::iiif::metadata::Metadata;
-use crate::iiif::types::{Id, IiifUrls, Uri};
+use crate::iiif::types::{Id, Uri};
 use crate::image::source::Image;
+use crate::image::Format;
 
 use serde::Serialize;
 
 const PRESENTATION: &str = "http://iiif.io/api/presentation/3/context.json";
 
 #[derive(Debug, Serialize)]
-enum Motivation {
+pub enum Motivation {
     #[serde(rename = "painting")]
     Painting,
 }
@@ -28,8 +29,12 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    pub fn id(presentation_api: &str, item_id: &Id) -> Uri {
+        Uri::new(format!("{}/{}/manifest", presentation_api, item_id.encoded))
+    }
+
     pub fn new(
-        iiif_urls: &IiifUrls,
+        presentation_api: &str,
         item_id: &Id,
         label: &str,
         metadata: Vec<Metadata>,
@@ -37,7 +42,7 @@ impl Manifest {
     ) -> Manifest {
         Manifest {
             context: Uri::new(PRESENTATION),
-            id: iiif_urls.manifest_id(item_id),
+            id: Manifest::id(presentation_api, item_id),
             label: label.to_owned(),
             metadata,
             description,
@@ -47,7 +52,8 @@ impl Manifest {
 
     pub fn add_image(
         &mut self,
-        iiif_urls: &IiifUrls,
+        image_api: &str,
+        presentation_api: &str,
         item_id: &Id,
         image_id: &Id,
         label: &str,
@@ -55,23 +61,23 @@ impl Manifest {
     ) {
         let index = self.items.len();
         let mut canvas = Canvas::new(
-            iiif_urls,
+            presentation_api,
             item_id,
             index,
             label,
             image.width,
             image.height,
         );
-        let image_resource = IiifImage::new(iiif_urls, image_id, image);
-        let annotation = Annotation::new(
-            iiif_urls.annotation_id(item_id, index, "image"),
+        let image_resource = IiifImage::new(image_api, image_id, image);
+        let annotation = Annotation::new_painting(
+            presentation_api,
+            item_id,
+            index,
             Resource::Image(image_resource),
             (&canvas.id).clone(),
         );
-        let annotation_page = AnnotationPage {
-            id: iiif_urls.annotation_page_id(item_id, index),
-            items: vec![annotation],
-        };
+        let annotation_page =
+            AnnotationPage::new(presentation_api, item_id, index, vec![annotation]);
         &canvas.add_item(annotation_page);
         for label in &image.labels {
             let body = match label {
@@ -102,8 +108,14 @@ pub struct Canvas {
 }
 
 impl Canvas {
+    pub fn id(presentation_api: &str, item_id: &Id, index: usize) -> Uri {
+        Uri::new(format!(
+            "{}/{}/canvas/{}",
+            presentation_api, item_id.encoded, index
+        ))
+    }
     pub fn new(
-        iiif_urls: &IiifUrls,
+        presentation_api: &str,
         item_id: &Id,
         index: usize,
         label: &str,
@@ -111,7 +123,7 @@ impl Canvas {
         height: u32,
     ) -> Canvas {
         Canvas {
-            id: iiif_urls.canvas_id(&item_id, index),
+            id: Canvas::id(presentation_api, item_id, index),
             label: label.to_owned(),
             height,
             width,
@@ -131,6 +143,27 @@ struct AnnotationPage {
     items: Vec<Annotation>,
 }
 
+impl AnnotationPage {
+    pub fn id(presentation_api: &str, item_id: &Id, index: usize) -> Uri {
+        Uri::new(format!(
+            "{}/{}/page/{}",
+            presentation_api, item_id.encoded, index
+        ))
+    }
+
+    pub fn new(
+        presentation_api: &str,
+        item_id: &Id,
+        index: usize,
+        items: Vec<Annotation>,
+    ) -> AnnotationPage {
+        AnnotationPage {
+            id: AnnotationPage::id(presentation_api, item_id, index),
+            items,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")]
 pub struct Annotation {
@@ -141,13 +174,48 @@ pub struct Annotation {
 }
 
 impl Annotation {
-    pub fn new(id: Uri, resource: Resource, target: Uri) -> Annotation {
+    pub fn id(presentation_api: &str, item_id: &Id, page: usize, suffix: &str) -> Uri {
+        Uri::new(format!(
+            "{}/{}/annotation/{}-{}",
+            presentation_api, item_id.encoded, page, suffix
+        ))
+    }
+
+    pub fn new(
+        presentation_api: &str,
+        item_id: &Id,
+        index: usize,
+        resource: Resource,
+        target: Uri,
+        motivation: Motivation,
+    ) -> Annotation {
+        let id = match resource {
+            Resource::Image(_) => Annotation::id(presentation_api, item_id, index, "image"),
+            _ => Annotation::id(presentation_api, item_id, index, "other"),
+        };
         Annotation {
             id,
-            motivation: Motivation::Painting,
+            motivation,
             body: resource,
             target,
         }
+    }
+
+    pub fn new_painting(
+        presentation_api: &str,
+        item_id: &Id,
+        index: usize,
+        resource: Resource,
+        target: Uri,
+    ) -> Annotation {
+        Annotation::new(
+            presentation_api,
+            item_id,
+            index,
+            resource,
+            target,
+            Motivation::Painting,
+        )
     }
 }
 
@@ -168,11 +236,20 @@ pub struct IiifImage {
 }
 
 impl IiifImage {
-    pub fn new(iiif_urls: &IiifUrls, image_id: &Id, image: &Image) -> IiifImage {
+    pub fn id(image_api: &str, image_id: &Id, format: &Format) -> Uri {
+        Uri::new(format!(
+            "{}/{}/full/full/0/default.{}",
+            image_api,
+            image_id.encoded,
+            format.extension()
+        ))
+    }
+
+    pub fn new(image_api: &str, image_id: &Id, image: &Image) -> IiifImage {
         IiifImage {
-            id: iiif_urls.image_id(image_id, &image.format),
+            id: IiifImage::id(image_api, image_id, &image.format),
             format: image.format.media_type().to_owned(),
-            service: ImageService2::new(iiif_urls.image_service_id(&image_id)),
+            service: ImageService2::new(ImageService2::id(image_api, image_id)),
             width: image.width,
             height: image.height,
         }
@@ -187,6 +264,9 @@ pub struct ImageService2 {
 }
 
 impl ImageService2 {
+    pub fn id(image_api: &str, image_id: &Id) -> Uri {
+        Uri::new(format!("{}/{}", image_api, image_id.encoded))
+    }
     fn new(id: Uri) -> ImageService2 {
         ImageService2 {
             id,
