@@ -1,12 +1,17 @@
+pub mod collections;
 pub mod metadata;
 pub mod types;
 
+use crate::config::Config;
+use crate::context::Context;
+use crate::iiif::collections::Collection;
 use crate::iiif::metadata::Metadata;
 use crate::iiif::types::{Id, Uri};
 use crate::image::source::Image;
 use crate::image::Format;
 
 use serde::Serialize;
+use std::error::Error;
 
 const PRESENTATION: &str = "http://iiif.io/api/presentation/3/context.json";
 
@@ -79,13 +84,6 @@ impl Manifest {
         let annotation_page =
             AnnotationPage::new(presentation_api, item_id, index, vec![annotation]);
         &canvas.add_item(annotation_page);
-        for label in &image.labels {
-            let body = match label {
-                crate::image::Label::KV(key, value) => {
-                    format!("<strong>{}:</strong> {}", key, value)
-                }
-            };
-        }
         self.items.push(canvas);
     }
 }
@@ -272,5 +270,72 @@ impl ImageService2 {
             id,
             profile: "level2".to_owned(),
         }
+    }
+}
+
+pub struct IiifGenerator {
+    config: Config,
+}
+
+impl IiifGenerator {
+    pub fn new(config: Config) -> IiifGenerator {
+        IiifGenerator { config }
+    }
+    pub fn manifest_for(&self, id: &str, images: Vec<Image>) -> Result<Manifest, String> {
+        let os_sep = std::path::MAIN_SEPARATOR.to_string();
+        let path = id.replace(&self.config.urls.path_sep, os_sep.as_str());
+        let source_path = self.config.serving.path.join(path);
+
+        let item_id = Id::new(id.replace("/", &self.config.urls.path_sep));
+        let context = Context::load_or_default(&source_path);
+        let mut manifest = Manifest::new(
+            &self.config.urls.presentation_api,
+            &item_id,
+            &id,
+            context.metadata,
+            context.description,
+        );
+        for image in images {
+            let image_id = Id::new(
+                format!(
+                    "{}{}{}",
+                    item_id.value, &self.config.urls.path_sep, image.name
+                )
+                .as_str(),
+            );
+            let urls = &self.config.urls;
+            manifest.add_image(
+                &urls.image_api,
+                &urls.presentation_api,
+                &item_id,
+                &image_id,
+                &image.name,
+                &image,
+            )
+        }
+        Ok(manifest)
+    }
+
+    pub fn collection_for(&self, id: &str) -> Result<Collection, Box<dyn Error>> {
+        let os_sep = std::path::MAIN_SEPARATOR.to_string();
+        let path = id.replace(&self.config.urls.path_sep, os_sep.as_str());
+        let source_path = self.config.serving.path.join(path);
+
+        println!("Source path: {}", &source_path.to_str().unwrap());
+        let mut collection = Collection::new();
+
+        let entries = std::fs::read_dir(source_path)?;
+        for entry in entries {
+            let path = entry?.path();
+            println!("Path is: {}", &path.to_str().unwrap());
+            println!("Path is dir: {}", &path.is_dir());
+            if path.is_dir() {
+                let name = path.file_name().unwrap().to_str().unwrap();
+                let item_id = Id::new(format!("{}{}{}", id, &self.config.urls.path_sep, name));
+                let manifest_id = Manifest::id(&self.config.urls.presentation_api, &item_id);
+                collection.add_manifest(manifest_id);
+            }
+        }
+        Ok(collection)
     }
 }

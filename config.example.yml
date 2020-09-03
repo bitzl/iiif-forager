@@ -9,4 +9,4 @@ serving:
 urls:
   path sep: "-"
   image api: http://localhost:1234/iiif/image/v2
-  presentation api: http://localhost:1234/iiif/presentation/v2
+  presentation api: http://localhost:7890

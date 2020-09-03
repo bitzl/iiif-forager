@@ -4,6 +4,7 @@ use crate::image::Label;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use crate::config::Config;
 use crate::image::png::{Chunk, PNG};
 
 pub struct Image {
@@ -15,14 +16,12 @@ pub struct Image {
 }
 
 pub struct ImageSource {
-    path: PathBuf,
+    config: Config,
 }
 
 impl ImageSource {
-    pub fn new(path: &Path) -> ImageSource {
-        ImageSource {
-            path: path.to_path_buf(),
-        }
+    pub fn new(config: Config) -> ImageSource {
+        ImageSource { config }
     }
 
     /// Returns all images in a directory inside self.path.
@@ -30,7 +29,11 @@ impl ImageSource {
     /// or None if the directory does not exist.
     ///
     pub fn load(&self, sub_path: &str) -> Option<Vec<Image>> {
-        let source_path = self.path.join(sub_path);
+        let restored = sub_path.replace(
+            &self.config.urls.path_sep,
+            &std::path::MAIN_SEPARATOR.to_string(),
+        );
+        let source_path = self.config.serving.path.join(restored);
 
         if !source_path.exists() {
             return None;
