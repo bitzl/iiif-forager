@@ -2,7 +2,7 @@ use crate::image::Format;
 use crate::image::Label;
 
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::config::Config;
 use crate::image::png::{Chunk, PNG};

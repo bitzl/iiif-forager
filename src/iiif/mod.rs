@@ -189,7 +189,6 @@ impl Annotation {
     ) -> Annotation {
         let id = match resource {
             Resource::Image(_) => Annotation::id(presentation_api, item_id, index, "image"),
-            _ => Annotation::id(presentation_api, item_id, index, "other"),
         };
         Annotation {
             id,
