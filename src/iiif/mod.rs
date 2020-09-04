@@ -12,6 +12,7 @@ use crate::image::Format;
 
 use serde::Serialize;
 use std::error::Error;
+use std::ffi::OsStr;
 
 const PRESENTATION: &str = "http://iiif.io/api/presentation/3/context.json";
 
@@ -320,20 +321,27 @@ impl IiifGenerator {
         let path = id.replace(&self.config.urls.path_sep, os_sep.as_str());
         let source_path = self.config.serving.path.join(path);
 
-        println!("Source path: {}", &source_path.to_str().unwrap());
         let mut collection = Collection::new();
 
-        let entries = std::fs::read_dir(source_path)?;
-        for entry in entries {
-            let path = entry?.path();
-            println!("Path is: {}", &path.to_str().unwrap());
-            println!("Path is dir: {}", &path.is_dir());
-            if path.is_dir() {
-                let name = path.file_name().unwrap().to_str().unwrap();
-                let item_id = Id::new(format!("{}{}{}", id, &self.config.urls.path_sep, name));
-                let manifest_id = Manifest::id(&self.config.urls.presentation_api, &item_id);
-                collection.add_manifest(manifest_id);
+        let mut directory_paths: Vec<_> = std::fs::read_dir(source_path)?
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.is_dir())
+            .collect();
+        directory_paths.sort();
+
+        for path in directory_paths {
+            let name = path.file_name().and_then(OsStr::to_str);
+            if name.is_none() {
+                continue;
             }
+            let item_id = Id::new(format!(
+                "{}{}{}",
+                id,
+                &self.config.urls.path_sep,
+                name.unwrap()
+            ));
+            let manifest_id = Manifest::id(&self.config.urls.presentation_api, &item_id);
+            collection.add_manifest(manifest_id);
         }
         Ok(collection)
     }
