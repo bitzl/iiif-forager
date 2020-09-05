@@ -1,11 +1,13 @@
 use crate::iiif::annotations::{Annotation, AnnotationPage};
 use crate::iiif::metadata::Metadata;
+use crate::iiif::resources::{IiifImage, Resource};
 use crate::iiif::types::Id;
 use crate::iiif::types::Uri;
-use crate::iiif::{IiifImage, Resource, PRESENTATION};
 use crate::image::source::Image;
 
 use serde::Serialize;
+
+const PRESENTATION: &str = "http://iiif.io/api/presentation/3/context.json";
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")] // valid Presentation API v3

@@ -1,5 +1,5 @@
+use crate::iiif::resources::Resource;
 use crate::iiif::types::{Id, Uri};
-use crate::iiif::Resource;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
