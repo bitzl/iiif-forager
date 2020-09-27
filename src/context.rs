@@ -5,6 +5,8 @@ use std::error::Error;
 use std::fs::File;
 use std::path::Path;
 
+// A context allows to add addditional metadata using a JSON file
+// "context.json" in the same directory as the images.
 #[derive(Debug, Deserialize)]
 pub struct Context {
     pub description: Option<String>,
@@ -32,7 +34,7 @@ impl Context {
     pub fn load_or_default<P: AsRef<Path>>(path: P) -> Context {
         match Context::load(path) {
             Ok(context) => context,
-            Err(_) => Context::empty()
+            Err(_) => Context::empty(),
         }
     }
 
