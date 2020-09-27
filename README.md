@@ -7,8 +7,8 @@ IIIF Presentation API server for images organized in directories, written in Rus
 Try it with samples in this repository:
 
 ```sh
-$ cargo run config.example.yml
-$ curl -s "http://127.0.0.1:8000/sample-123/manifest" | jq
+$ cargo run -- config.example.yml
+$ curl -s "http://127.0.0.1:8000/watergate-simple/manifest" | jq
 {
     "@context": "http://iiif.io/api/presentation/2/context.json",
     "@id": "http://127.0.0.1:8000/iiif/presentation/sample/manifest",
