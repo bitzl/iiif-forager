@@ -1,6 +1,6 @@
 # IIIF Forager
 
-:warning: some APIs and configuration parameters are still experimental. Use with caution!
+:warning: _some APIs and configuration parameters are still experimental. Use with caution!_
 
 IIIF Presentation API server for images organized in directories, written in Rust.
 
