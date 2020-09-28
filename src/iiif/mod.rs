@@ -6,11 +6,11 @@ pub mod resources;
 pub mod types;
 
 use crate::config::Config;
-use crate::context::Context;
 use crate::iiif::collections::Collection;
 use crate::iiif::manifests::Manifest;
 use crate::iiif::types::Id;
 use crate::image::source::Image;
+use crate::meta::Meta;
 
 use std::error::Error;
 use std::ffi::OsStr;
@@ -29,7 +29,7 @@ impl IiifGenerator {
         let source_path = self.config.serving.path.join(path);
 
         let item_id = Id::new(id.replace("/", &self.config.urls.path_sep));
-        let context = Context::load_or_default(&source_path);
+        let context = Meta::load_or_default(&source_path);
         let mut manifest = Manifest::new(
             &self.config.urls.presentation_api,
             &item_id,

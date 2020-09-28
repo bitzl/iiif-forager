@@ -2,7 +2,7 @@ GET http://localhost:7890/watergate-simple/manifest
 
 ###
 
-GET http://localhost:7890/watergate-with_context/manifest
+GET http://localhost:7890/watergate-with_meta/manifest
 
 ###
 

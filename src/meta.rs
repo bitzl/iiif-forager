@@ -1,45 +1,55 @@
 use crate::iiif::metadata::Metadata;
 use serde::Deserialize;
 use serde_json;
+use serde_yaml;
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
 
+enum Format {
+    JSON,
+    YAML,
+}
+
 // A context allows to add addditional metadata using a JSON file
 // "context.json" in the same directory as the images.
 #[derive(Debug, Deserialize)]
-pub struct Context {
+pub struct Meta {
     pub description: Option<String>,
     #[serde(default = "Vec::new")]
     pub metadata: Vec<Metadata>,
 }
 
-impl Context {
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Context, Box<dyn Error>> {
-        for extension in vec!["json"] {
-            let filename = format!("context.{}", extension);
-            let context_path = path.as_ref().join(filename);
-            if context_path.exists() {
-                let json_file = File::open(context_path)?;
-                let context = match extension {
-                    "json" => serde_json::from_reader(&json_file)?,
-                    _ => Context::empty(), // not possible
-                };
-                return Ok(context);
+impl Meta {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Meta, Box<dyn Error>> {
+        for (filename, format) in vec![
+            ("meta.json", Format::JSON),
+            ("meta.yml", Format::YAML),
+            ("meta.yaml", Format::YAML),
+        ] {
+            let meta_path = path.as_ref().join(filename);
+            if !meta_path.exists() {
+                continue;
             }
+            let json_file = File::open(meta_path)?;
+            let context = match format {
+                Format::JSON => serde_json::from_reader(&json_file)?,
+                Format::YAML => serde_yaml::from_reader(&json_file)?,
+            };
+            return Ok(context);
         }
-        Ok(Context::empty())
+        Ok(Meta::empty())
     }
 
-    pub fn load_or_default<P: AsRef<Path>>(path: P) -> Context {
-        match Context::load(path) {
-            Ok(context) => context,
-            Err(_) => Context::empty(),
+    pub fn load_or_default<P: AsRef<Path>>(path: P) -> Meta {
+        match Meta::load(path) {
+            Ok(meta) => meta,
+            Err(_) => Meta::empty(),
         }
     }
 
-    pub const fn empty() -> Context {
-        Context {
+    pub const fn empty() -> Meta {
+        Meta {
             description: None,
             metadata: Vec::new(),
         }
@@ -49,8 +59,8 @@ impl Context {
 #[cfg(test)]
 mod tests {
 
-    use crate::context::Context;
     use crate::iiif::metadata::{LocalizedValue, Metadata};
+    use crate::meta::Meta;
 
     #[test]
     fn load_json() {
@@ -72,7 +82,7 @@ mod tests {
                 }
             ]
         }"#;
-        let actual: Context = serde_json::from_str(json).unwrap();
+        let actual: Meta = serde_json::from_str(json).unwrap();
         assert_eq!(actual.description, Some("Expected description".to_owned()));
         assert_eq!(actual.metadata[0], Metadata::key_value("size", "53 MB"));
         assert_eq!(

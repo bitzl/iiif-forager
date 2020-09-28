@@ -2,10 +2,10 @@
 extern crate actix_web;
 
 mod config;
-mod context;
 mod http_api;
 mod iiif;
 mod image;
+mod meta;
 
 use clap;
 
