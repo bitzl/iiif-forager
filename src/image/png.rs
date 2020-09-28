@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn it_works() {
         let mut data = Vec::new();
-        let mut file = File::open("sample/123/MOV_0646000.png").unwrap();
+        let mut file = File::open("sample/watergate/simple/MOV_0646000.png").unwrap();
         file.read_to_end(&mut data).unwrap();
         let (_, png) = parse_png(&data).unwrap();
         println!("Got the following chunks:");
