@@ -2,7 +2,7 @@
 
 :warning: _some APIs and configuration parameters are still experimental. Use with caution!_
 
-IIIF Presentation API server for images organized in directories, written in Rust.
+IIIF Presentation API server for images organized in directories, written in Rust. Supports [Presentation API 3.0](https://iiif.io/api/presentation/3.0/).
 
 Try it with samples in this repository:
 
@@ -10,7 +10,7 @@ Try it with samples in this repository:
 $ cargo run -- config.example.yml
 $ curl -s "http://127.0.0.1:8000/watergate-simple/manifest" | jq
 {
-    "@context": "http://iiif.io/api/presentation/2/context.json",
+    "@context": "http://iiif.io/api/presentation/3/context.json",
     "@id": "http://127.0.0.1:8000/iiif/presentation/sample/manifest",
     "@type": "sc:Manifest",
     ...
